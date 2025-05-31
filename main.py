@@ -17,13 +17,12 @@ from selenium.common.exceptions import TimeoutException
 from regions import regions_reversed
 from captcha import solve_captcha
 from tempfile import NamedTemporaryFile
-
+from loans_cheker import find_first_subfolder, move_folder
 from urllib.parse import urljoin
 
-file_path1=r"C:\Users\gluhovva\Downloads\credit-detail_5b41907b-30bc-4ca1-9d76-db76b8a0d393.xlsx"
-file_path2=r"C:\Users\gluhovva\Downloads\5b41907b-30bc-4ca1-9d76-db76b8a0d393_6-295ГЭС ПС_Объяснение_Сальникова Чулпан Фаргатовна_Галимзянова_.docx"
-file_path3=r"C:\Users\gluhovva\Downloads\5b41907b-30bc-4ca1-9d76-db76b8a0d393_b2p_payment.pdf"
-
+root_folder = r"C:\Users\1\Desktop\Сделать"
+dst_root = r"C:\Users\1\Desktop\Готовые 3105"
+keywords = ["День2", "Договор", "comeback", "подтверждение", "справка"]  # твои ключевые слова
 
 
 
@@ -79,10 +78,10 @@ logger.addHandler(error_file)
 
 
 
+driver = webdriver.Chrome(service=ChromiumService(ChromeDriverManager().install()))
+wait = WebDriverWait(driver, 15)
 
-
-
-with webdriver.Chrome(service=ChromiumService(ChromeDriverManager().install())) as driver:
+try:
     logger.debug('Запускаем браузер')
     driver.get("https://xn--b1aew.xn--p1ai/request_main")
     time.sleep(3)
@@ -100,39 +99,39 @@ with webdriver.Chrome(service=ChromiumService(ChromeDriverManager().install())) 
     ).click()
 
     button = driver.find_element(By.XPATH, "//button[contains(text(), 'Подать обращение от гражданина')]").click()
-
+    #Блок  авторизации гос услуг
     try:
         wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "modal-content")))
         btn_gos_uslugi = wait.until(
             EC.element_to_be_clickable((By.XPATH, "//a[.//img[@alt='Войти через Госуслуги']]"))
         ).click()
+        time.sleep(5)
+        inputs = driver.find_elements(By.TAG_NAME, "input")
+        for inp in inputs:
+            print(inp.get_attribute("outerHTML"))
+
+        login_input = wait.until(
+            EC.visibility_of_element_located((By.ID, "login"))
+        )
+        login_input.send_keys(LOGIN)
+        password_input = wait.until(
+            EC.visibility_of_element_located((By.ID, "password"))
+        )
+        password_input.send_keys(PASSWORD)
+        login_button = wait.until(
+            EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Войти')]"))
+        )
+        login_button.click()
+        time.sleep(3)
+        short_code=input('Вставьте 6 код/n')
+        code_input = wait.until(
+            EC.visibility_of_element_located((By.CSS_SELECTOR, "esia-code-input input"))
+        )
+        code_input.send_keys(short_code)
     except TimeoutException:
-        with open("debug.html", "w", encoding="utf-8") as f:
-            f.write(driver.page_source)
-    time.sleep(5)
-    inputs = driver.find_elements(By.TAG_NAME, "input")
-    for inp in inputs:
-        print(inp.get_attribute("outerHTML"))
+        logging.info('Авторизация не требуется')
 
-    login_input = wait.until(
-        EC.visibility_of_element_located((By.ID, "login"))
-    )
-    login_input.send_keys(LOGIN)
-    password_input = wait.until(
-        EC.visibility_of_element_located((By.ID, "password"))
-    )
-    password_input.send_keys(PASSWORD)
-    login_button = wait.until(
-        EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Войти')]"))
-    )
-    login_button.click()
-    time.sleep(3)
-    short_code=input('Вставьте 6 код/n')
-    code_input = wait.until(
-        EC.visibility_of_element_located((By.CSS_SELECTOR, "esia-code-input input"))
-    )
-    code_input.send_keys(short_code)
-
+    #Ввод емайла
     EMAIL_INPUT = wait.until(
         EC.visibility_of_element_located((By.ID, "email_check"))
     )
@@ -144,21 +143,35 @@ with webdriver.Chrome(service=ChromiumService(ChromeDriverManager().install())) 
     )
     TEXT_INPUT.send_keys(TEXT)
 
+    #Поиск капчи
     captcha_element = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".captcha-img")))
     captcha_text = screenshot_and_solve(driver, captcha_element)
     print("Решение капчи:", captcha_text)
 
-    # Введи капчу
+    # Решение Каптчи
     captcha_input = driver.find_element(By.NAME, "captcha")
     captcha_input.clear()
     captcha_input.send_keys(captcha_text)
+
+    #Ищем где загружать файл.
     file_input = driver.find_element(By.ID, "fileupload-input")
-# 3. Отправляем путь к файлу
-    file_input.send_keys(file_path1)
-    file_input.send_keys(file_path2)
-    file_input.send_keys(file_path3)
-    # # 4. Вставляем капчу
-    # input_field = driver.find_element(By.NAME, "captcha")
-    # input_field.clear()
-    # input_field.send_keys(captcha_text)
+
+    found,folder_path  = find_first_subfolder(root_folder, keywords)
+    for i in found:
+    # 3. Отправляем путь к файлу
+        file_input.send_keys(i)
+    
+
+    move_folder(folder_path, dst_root)
+    
+ #   
     time.sleep(150)
+
+except Exception as e:
+    logger.exception(f"Ошибка в процессе: {e}")
+    with open("error.log", "a", encoding="utf-8") as f:
+                f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] СКРИПТ УПАЛ! . Ошибка: {e}\n")
+
+finally:
+    driver.quit()
+    logger.info("Браузер закрыт.")
