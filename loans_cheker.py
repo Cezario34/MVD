@@ -1,9 +1,6 @@
 import os
 import shutil
 
-root_folder = r"C:\Users\1\Desktop\Сделать"
-dst_root = r"C:\Users\1\Desktop\Готовые 3105"
-keywords = ["День2", "Договор", "comeback", "подтверждение", "справка"]  # твои ключевые слова
 
 
 def find_first_subfolder(root_folder):
@@ -16,7 +13,7 @@ def find_first_subfolder(root_folder):
             return full_path
     return None
 
-def find_files_by_keywords(folder_path, keywords, dst_root):
+def find_files_by_keywords(folder_path, keywords):
 
 
     """
@@ -25,7 +22,7 @@ def find_files_by_keywords(folder_path, keywords, dst_root):
     :param keywords: список подстрок (ключевых слов) для поиска в имени файла
     :return: список путей к найденным файлам
     """
-    folder_path = find_first_subfolder(root_folder)
+    folder_path = find_first_subfolder(folder_path)
 
     found = []
     for fname in os.listdir(folder_path):
@@ -57,6 +54,3 @@ def move_folder(src_folder, dst_root):
     shutil.move(src_folder, dst_root)
     return dst_folder
 
-found = find_files_by_keywords(root_folder, keywords, dst_root)
-for i in found:
-    print(i)

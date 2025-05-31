@@ -17,12 +17,12 @@ from selenium.common.exceptions import TimeoutException
 from regions import regions_reversed
 from captcha import solve_captcha
 from tempfile import NamedTemporaryFile
-from loans_cheker import find_first_subfolder, move_folder
+from loans_cheker import find_files_by_keywords, move_folder
 from urllib.parse import urljoin
 
-root_folder = r"C:\Users\1\Desktop\Сделать"
-dst_root = r"C:\Users\1\Desktop\Готовые 3105"
-keywords = ["День2", "Договор", "comeback", "подтверждение", "справка"]  # твои ключевые слова
+root_folder = r"C:\Users\gluhovva\Desktop\Folder1"
+dst_root = r"C:\Users\gluhovva\Desktop\Folder 2"
+keywords = ["Логика", "Слабые", "comeback", "подтверждение", "справка"]  # твои ключевые слова
 
 
 
@@ -143,28 +143,29 @@ try:
     )
     TEXT_INPUT.send_keys(TEXT)
 
-    #Поиск капчи
+    # #Поиск капчи
     captcha_element = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".captcha-img")))
     captcha_text = screenshot_and_solve(driver, captcha_element)
     print("Решение капчи:", captcha_text)
 
-    # Решение Каптчи
+    # # Решение Каптчи
     captcha_input = driver.find_element(By.NAME, "captcha")
     captcha_input.clear()
     captcha_input.send_keys(captcha_text)
 
-    #Ищем где загружать файл.
+    # #Ищем где загружать файл.
     file_input = driver.find_element(By.ID, "fileupload-input")
 
-    found,folder_path  = find_first_subfolder(root_folder, keywords)
+    found,folder_path  = find_files_by_keywords(root_folder, keywords)
     for i in found:
     # 3. Отправляем путь к файлу
+        print(i)
         file_input.send_keys(i)
     
 
     move_folder(folder_path, dst_root)
     
- #   
+   
     time.sleep(150)
 
 except Exception as e:
