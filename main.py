@@ -32,6 +32,17 @@ def screenshot_and_solve(driver, element, filename='captcha.png'):
     return solve_captcha(filename)
 
 
+def looking_and_solve_capthca():
+    captcha_element = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".captcha-img")))
+    captcha_text = screenshot_and_solve(driver, captcha_element)
+    print("Решение капчи:", captcha_text)
+
+    # # Решение Каптчи
+    captcha_input = driver.find_element(By.NAME, "captcha")
+    captcha_input.clear()
+    captcha_input.send_keys(captcha_text)
+
+
 
 env = Env()
 env.read_env()
@@ -144,14 +155,7 @@ try:
     TEXT_INPUT.send_keys(TEXT)
 
     # #Поиск капчи
-    captcha_element = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".captcha-img")))
-    captcha_text = screenshot_and_solve(driver, captcha_element)
-    print("Решение капчи:", captcha_text)
-
-    # # Решение Каптчи
-    captcha_input = driver.find_element(By.NAME, "captcha")
-    captcha_input.clear()
-    captcha_input.send_keys(captcha_text)
+    looking_and_solve_capthca()
 
     # #Ищем где загружать файл.
     file_input = driver.find_element(By.ID, "fileupload-input")
@@ -161,9 +165,23 @@ try:
     # 3. Отправляем путь к файлу
         print(i)
         file_input.send_keys(i)
+        time.sleep(5)
     
+    complete_button = driver.find_element(By.CLASS_NAME, "u-form__sbt").click()
+    
+    try:
+        WebDriverWait(driver, 2).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "b-error_list-item"))
+        )
+        print("Ошибка! Капча неверна")
+        looking_and_solve_capthca()
+        complete_button = driver.find_element(By.CLASS_NAME, "u-form__sbt").click()
 
+    except TimeoutException:
+        print("Ошибки нет, идем дальше")
+    
     move_folder(folder_path, dst_root)
+
     
    
     time.sleep(150)
