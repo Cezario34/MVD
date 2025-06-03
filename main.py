@@ -19,6 +19,8 @@ from captcha import solve_captcha
 from tempfile import NamedTemporaryFile
 from loans_cheker import find_files_by_keywords, move_folder
 from urllib.parse import urljoin
+from mail_pars import get_code
+
 
 root_folder = r"C:\Users\gluhovva\Desktop\Folder1"
 dst_root = r"C:\Users\gluhovva\Desktop\Folder 2"
@@ -134,7 +136,7 @@ try:
         )
         login_button.click()
         time.sleep(3)
-        short_code=input('Вставьте 6 код/n')
+        short_code=input('Вставьте 6 код\n')
         code_input = wait.until(
             EC.visibility_of_element_located((By.CSS_SELECTOR, "esia-code-input input"))
         )
@@ -155,7 +157,10 @@ try:
     TEXT_INPUT.send_keys(TEXT)
 
     # #Поиск капчи
-    looking_and_solve_capthca()
+    try:
+        looking_and_solve_capthca()
+    except:
+        logger.info('Проблема с капчей. Введи руками или дождись следующего шага')
 
     # #Ищем где загружать файл.
     file_input = driver.find_element(By.ID, "fileupload-input")
@@ -180,7 +185,29 @@ try:
     except TimeoutException:
         print("Ошибки нет, идем дальше")
     
-    move_folder(folder_path, dst_root)
+    sending_letter = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.ID, "confirm_but"))
+    ).click()
+
+    time.sleep(10)
+    check_up_email = input('Код пришел? \n')
+    code = get_code()
+
+    email_code_input = wait.until(
+        EC.visibility_of_element_located((By.CLASS_NAME, "confirm-mail"))
+    )
+    email_code_input.send_keys(code)
+    logger.info('код введен')
+
+    button_confirm_email = driver.find_element(By.ID, "confirm_mail").click()
+    
+    driver.find_element(By.CSS_SELECTOR, "label.n-checkbox").click()
+
+    # button_confirm_loan = driver.find_element(By.ID, "form-submit").click()
+    # link = driver.find_element(By.XPATH, "//a[contains(@href, 'request_main/check')]")
+    # print(link.get_attribute('href'))    
+    
+    # move_folder(folder_path, dst_root)
 
     
    
