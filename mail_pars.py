@@ -89,4 +89,5 @@ def get_code() -> str | None:
         return None
 
 
-print(get_code())
+if __name__ == ('__main__'):
+    get_code()

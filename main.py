@@ -3,7 +3,7 @@ import time
 import sys
 import requests
 
-
+from selenium.webdriver.common.action_chains import ActionChains
 from environs import Env
 from log_filters import ErrorLogFilter, CriticalLogFilter, DebugWarningLogFilter
 from selenium import webdriver
@@ -20,41 +20,15 @@ from tempfile import NamedTemporaryFile
 from loans_cheker import find_files_by_keywords, move_folder
 from urllib.parse import urljoin
 from mail_pars import get_code
+from config_data import person
+from selenium.webdriver.common.keys import Keys
 
 
 root_folder = r"C:\Users\gluhovva\Desktop\Folder1"
 dst_root = r"C:\Users\gluhovva\Desktop\Folder 2"
 keywords = ["Логика", "Слабые", "comeback", "подтверждение", "справка"]  # твои ключевые слова
 
-
-
-def screenshot_and_solve(driver, element, filename='captcha.png'):
-    element.screenshot(filename)
-    print(f"Скриншот капчи сохранён: {filename}")
-    return solve_captcha(filename)
-
-
-def looking_and_solve_capthca():
-    captcha_element = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".captcha-img")))
-    captcha_text = screenshot_and_solve(driver, captcha_element)
-    print("Решение капчи:", captcha_text)
-
-    # # Решение Каптчи
-    captcha_input = driver.find_element(By.NAME, "captcha")
-    captcha_input.clear()
-    captcha_input.send_keys(captcha_text)
-
-
-
-env = Env()
-env.read_env()
-
-
 TEXT = 'Абракадабра'
-
-LOGIN = env('LOGIN')
-PASSWORD = env('PASSWORD')
-EMAIL = env('EMAIL')
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -89,6 +63,22 @@ logger.addHandler(stdout)
 logger.addHandler(error_file)
 
 
+def screenshot_and_solve(driver, element, filename='captcha.png'):
+    element.screenshot(filename)
+    print(f"Скриншот капчи сохранён: {filename}")
+    return solve_captcha(filename)
+
+
+def looking_and_solve_capthca():
+    captcha_element = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".captcha-img")))
+    captcha_text = screenshot_and_solve(driver, captcha_element)
+    print("Решение капчи:", captcha_text)
+
+    # # Решение Каптчи
+    captcha_input = driver.find_element(By.NAME, "captcha")
+    captcha_input.clear()
+    captcha_input.send_keys(captcha_text)
+
 
 
 driver = webdriver.Chrome(service=ChromiumService(ChromeDriverManager().install()))
@@ -104,7 +94,7 @@ try:
     wait.until(
         EC.element_to_be_clickable((By.ID, "f"))
     )
-    # 3. Теперь кликаем по кнопке
+
     button = driver.find_element(By.ID, "f").click()
 
     checkbox_label2 = WebDriverWait(driver, 10).until(
@@ -126,11 +116,11 @@ try:
         login_input = wait.until(
             EC.visibility_of_element_located((By.ID, "login"))
         )
-        login_input.send_keys(LOGIN)
+        login_input.send_keys(person.login)
         password_input = wait.until(
             EC.visibility_of_element_located((By.ID, "password"))
         )
-        password_input.send_keys(PASSWORD)
+        password_input.send_keys(person.password)
         login_button = wait.until(
             EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Войти')]"))
         )
@@ -145,11 +135,18 @@ try:
         logging.info('Авторизация не требуется')
 
     #Ввод емайла
-    EMAIL_INPUT = wait.until(
-        EC.visibility_of_element_located((By.ID, "email_check"))
-    )
-    EMAIL_INPUT.clear()
-    EMAIL_INPUT.send_keys(EMAIL)
+
+    wait = WebDriverWait(driver, 10)
+    EMAIL_INPUT = wait.until(EC.visibility_of_element_located((By.ID, "email_check")))
+
+    actions = ActionChains(driver)  # ← вот
+    actions.move_to_element(EMAIL_INPUT).click().perform()
+    driver.execute_script('arguments[0].value = ""', EMAIL_INPUT)
+    EMAIL_INPUT.send_keys(person.email)
+
+
+    print(EMAIL_INPUT.get_attribute('value'))
+
 
     TEXT_INPUT = wait.until(
         EC.visibility_of_element_located((By.CLASS_NAME, "textarea"))
@@ -162,12 +159,12 @@ try:
     except:
         logger.info('Проблема с капчей. Введи руками или дождись следующего шага')
 
-    # #Ищем где загружать файл.
+    # Ищем где загружать файл.
     file_input = driver.find_element(By.ID, "fileupload-input")
 
     found,folder_path  = find_files_by_keywords(root_folder, keywords)
     for i in found:
-    # 3. Отправляем путь к файлу
+    # Отправляем путь к файлу
         print(i)
         file_input.send_keys(i)
         time.sleep(5)
@@ -200,9 +197,10 @@ try:
     logger.info('код введен')
 
     button_confirm_email = driver.find_element(By.ID, "confirm_mail").click()
-    
-    driver.find_element(By.CSS_SELECTOR, "label.n-checkbox").click()
 
+    
+    checkbox = driver.find_element(By.ID, 'correct')
+    driver.execute_script("arguments[0].click();", checkbox)
     # button_confirm_loan = driver.find_element(By.ID, "form-submit").click()
     # link = driver.find_element(By.XPATH, "//a[contains(@href, 'request_main/check')]")
     # print(link.get_attribute('href'))    

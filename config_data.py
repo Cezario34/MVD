@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from environs import Env
 
 env = Env()
-env.read_env()
+env.read_env(override=True)
 
 
 @dataclass
@@ -42,6 +42,12 @@ class mainDBConfig:
     dk: str
 
 
+@dataclass
+class PersonData:
+    login: str
+    password: str
+    email: str
+
 dbConfig = DatabaseConfig(
     dbname=env('dbname'),
     user=env('user'),
@@ -61,9 +67,11 @@ main_db_config = mainDBConfig(
 )
 
 
-auth_gos = GosUslugiConfig(
+person = PersonData(
     login= env('LOGIN'),
-    password= env('PASSWORD')
+    password= env('PASSWORD_pers'),
+    email=env('EMAIL')
+
 )
 
 
@@ -74,3 +82,5 @@ email_auth = EmailConfig(
     imap_port = env('imap_port'),
     sender_email = env('sender_email')
 )
+
+print(conn_string)
