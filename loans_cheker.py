@@ -1,9 +1,9 @@
 import os
 import shutil
+from typing import List, Tuple
 
 
-
-def find_first_subfolder(root_folder):
+def find_first_subfolder(root_folder: str) -> str:
     """
     Возвращает путь к первой подпапке внутри root_folder.
     """
@@ -13,15 +13,7 @@ def find_first_subfolder(root_folder):
             return full_path
     return None
 
-def find_files_by_keywords(folder_path, keywords):
-
-
-    """
-    Ищет файлы, имя которых содержит одно из ключевых слов.
-    :param folder_path: папка для поиска
-    :param keywords: список подстрок (ключевых слов) для поиска в имени файла
-    :return: список путей к найденным файлам
-    """
+def find_files_by_keywords(folder_path: str, keywords: list) -> Tuple[list[str], str]:
     folder_path = find_first_subfolder(folder_path)
 
     found = []
@@ -37,12 +29,9 @@ def find_files_by_keywords(folder_path, keywords):
     return found, folder_path
 
 
-def move_folder(src_folder, dst_root):
+def move_folder(src_folder: str, dst_root: str) -> str:
     """
     Перемещает папку src_folder в папку dst_root (если уже есть — ошибка).
-    :param src_folder: полный путь к исходной подпапке
-    :param dst_root: полный путь к целевой папке (туда перемещаем)
-    :return: полный путь, по которому теперь находится папка
     """
     if not os.path.isdir(src_folder):
         raise ValueError(f"Исходная папка не найдена: {src_folder}")
@@ -53,4 +42,11 @@ def move_folder(src_folder, dst_root):
         raise FileExistsError(f"Папка {dst_folder} уже существует!")
     shutil.move(src_folder, dst_root)
     return dst_folder
+
+def get_loan_id(path) -> str:
+    return find_first_subfolder(path).split('_')[1]
+
+def get_Locality(path) -> str:
+    return find_first_subfolder(path).split()[2].split('\\')[1]
+
 

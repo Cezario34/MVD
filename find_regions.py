@@ -1,32 +1,50 @@
 from config_data import conn_string, main_db_config
 from sqlalchemy import create_engine, text
 import pandas as pd
+from loans_cheker import get_loan_id
 
 def get_query(bd, loan_id):
     return f"""
 SELECT *
 FROM dblink(
     '{bd}',
-	$$
-	SELECT
-
-    substring(addresses->'reg_address'->>'region_kladr_id' FROM 1 FOR 2) AS region_code
-    from loans join clients on loans.profile_id = clients.profile_id
-    
-     where loans.id = '{loan_id}'
-	$$
-) as t1 (region_code int)
+    $$
+    SELECT
+        concat(surname, ' ', name, ' ', midname) as fio,
+        TO_CHAR(birthdate, 'DD-MM-YYYY') as birthday,
+        substring(addresses->'reg_address'->>'region_kladr_id' FROM 1 FOR 2) AS region_code,
+        addresses_label->'reg_address' as reg_address
+    FROM loans
+    JOIN clients ON loans.profile_id = clients.profile_id
+    WHERE loans.id = '{loan_id}'
+    $$
+) AS t1 (
+    fio varchar,
+    birthday varchar,
+    region_code varchar,
+    reg_address varchar
+);
 """
 
 
-def get_code(bd, loan_id, params=None):
+def get_code_region(bd: str, loan_id: str, params=None):
+    """
+    На вход получает строку подключения к мейн бд и номер договора.
+    Возвращает fio, birthday, region_code (или None, если не найдено).
+    """
     engine_olap = create_engine(conn_string)
-    query=get_query(bd, loan_id)
+    query = get_query(bd, loan_id)
     df = pd.read_sql_query(text(query), con=engine_olap, params=params)
     if not df.empty:
-        return df.iloc[0, 0]  # возвращает просто значение без индекса и колонки
+        fio = df.iloc[0]['fio']
+        birthday = df.iloc[0]['birthday']
+        region_code = df.iloc[0]['region_code']
+        reg_address = df.iloc[0]['reg_address']
+        return fio, birthday, region_code,reg_address
     else:
-        return None  
+        return None, None, None
 
-
-print(get_code(main_db_config.ps,'10656835-1a26-4357-bfe8-3fe25421e97c'))
+bd = {
+    'ps' : main_db_config.ps,
+    'dk': main_db_config.dk 
+}

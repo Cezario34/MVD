@@ -83,4 +83,3 @@ email_auth = EmailConfig(
     sender_email = env('sender_email')
 )
 
-print(conn_string)
