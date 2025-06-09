@@ -22,26 +22,27 @@ from mail_pars import get_code
 from config_data import person
 from selenium.webdriver.common.keys import Keys
 from find_regions import get_code_region, bd
-from selenium.common.exceptions import WebDriverException, TimeoutException, InvalidArgumentException
+from selenium.common.exceptions import WebDriverException, TimeoutException, InvalidArgumentException, StaleElementReferenceException, ElementClickInterceptedException
 from text_appel import get_text
 from Find_nearst_MVD import get_mvd
 from AI_match import answer_ai
 from add_commentory import add_link
 
 #ПС
-root_folder = r"\\Pczaitenov\159\Ежедневная подача\Мезитова\05.06.2025 ПС"
+root_folder = r"\\Pczaitenov\159\Ежедневная подача\Галимзянова\07.06.2025 ПС"
 
 #ДК
 # root_folder = r"\\Pczaitenov\159\ДК. Ежедневная подача\Мезитова\03.06.2025 ДК"
 
-dst_root = r"C:\Users\gluhovva\Desktop\Folder 2"
+dst_root = r"\\Pczaitenov\159\Ежедневная подача\Галимзянова\Выполненные\07.06.2025 ПС"
 keywords = ["пс_заявление", "объяснение", "payment", "credit", "справка"] 
 
+phone_number = 89600476437
 
 #ПС
-static_file_1 = r"\\Pczaitenov\159\Ежедневная подача\Мезитова\ПС Агентский договор Триумвират - ЭквИта-Капитал (1).pdf"
-static_file_2 = r"\\Pczaitenov\159\Ежедневная подача\Мезитова\ПС Доверенность от Триумвират на Эквиту (1).pdf"
-static_file_3 = r"\\Pczaitenov\159\Ежедневная подача\Мезитова\ПС Мезитова довер (1).pdf"
+static_file_1 = r"\\Pczaitenov\159\Ежедневная подача\Галимзянова\Агентский договор Триумвират - ЭквИта-Капитал.pdf"
+static_file_2 = r"\\Pczaitenov\159\Ежедневная подача\Галимзянова\ДОВЕРЕННОСТЬ НА СОТРУДНИКА ГАЛИМЗЯНОВА.pdf"
+static_file_3 = r"\\Pczaitenov\159\Ежедневная подача\Галимзянова\Доверенность от Триумвират на Эквиту.pdf"
 
 
 #ДК
@@ -100,7 +101,7 @@ def looking_and_solve_capthca():
     captcha_input.send_keys(captcha_text)
 
 def check_info(driver):
-    checkbox_label2 = WebDriverWait(driver, 60).until(
+    checkbox_label2 = WebDriverWait(driver, 150).until(
     EC.element_to_be_clickable((By.CLASS_NAME, "checkbox"))
     ).click()
     button =  WebDriverWait(driver, 60).until(
@@ -180,36 +181,36 @@ try:
     except Exception as e:
         logger.info(f'Блока нет идем дальше {e}')
     #Блок  авторизации гос услуг
-    try:
-        time.sleep(3)
-        inputs = driver.find_elements(By.TAG_NAME, "input")
-        for inp in inputs:
-            print(inp.get_attribute("outerHTML"))
+    # try:
+    #     time.sleep(3)
+    #     inputs = driver.find_elements(By.TAG_NAME, "input")
+    #     for inp in inputs:
+    #         print(inp.get_attribute("outerHTML"))
 
-        login_input = wait.until(
-            EC.visibility_of_element_located((By.ID, "login"))
-        )
-        login_gos = input('Введи логин гос услуг')
-        # login_input.send_keys(person.login)
-        login_input.send_keys(login_gos)
-        password_input_gos = input('Введи пароль гос услуг')
-        password_input = wait.until(
-            EC.visibility_of_element_located((By.ID, "password"))
-        )
-        password_input.send_keys(password_input_gos)
-        # password_input.send_keys(person.password)
-        login_button = wait.until(
-            EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Войти')]"))
-        )
-        login_button.click()
-        time.sleep(3)
-        # short_code=input('Вставьте 6 код\n')
-        # code_input = wait.until(
-        #     EC.visibility_of_element_located((By.CSS_SELECTOR, "esia-code-input input"))
-        # )
-        # code_input.send_keys(short_code)
-    except TimeoutException:
-        logging.info('Авторизация не требуется')
+    #     login_input = wait.until(
+    #         EC.visibility_of_element_located((By.ID, "login"))
+    #     )
+    #     login_gos = input('Введи логин гос услуг')
+    #     # login_input.send_keys(person.login)
+    #     login_input.send_keys(login_gos)
+    #     password_input_gos = input('Введи пароль гос услуг')
+    #     password_input = wait.until(
+    #         EC.visibility_of_element_located((By.ID, "password"))
+    #     )
+    #     password_input.send_keys(password_input_gos)
+    #     # password_input.send_keys(person.password)
+    #     login_button = wait.until(
+    #         EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Войти')]"))
+    #     )
+    #     login_button.click()
+    #     time.sleep(3)
+    #     # short_code=input('Вставьте 6 код\n')
+    #     # code_input = wait.until(
+    #     #     EC.visibility_of_element_located((By.CSS_SELECTOR, "esia-code-input input"))
+    #     # )
+    #     # code_input.send_keys(short_code)
+    # except TimeoutException:
+    #     logging.info('Авторизация не требуется')
 
     try:
         check_info(driver)
@@ -230,7 +231,7 @@ try:
         texts = [o.text for o in options]
         ai = answer_ai(texts, template_mvd)
         print(f"AI suggests: {ai}")
-
+        found = False
         # Теперь ищем элемент с нужным текстом и кликаем
         for _ in range(3):  # Несколько попыток на случай проблем
             try:
@@ -264,6 +265,12 @@ try:
     except Exception as e:
         logger.error(f'Выбор мвд не удался, проблема {e}')
         hand_mvd = input('Выбери мвд руками в браузере и нажми интер тут')
+    
+    
+    phone_input = driver.find_element(By.ID, "phone_check")
+    phone_input.clear()  # если нужно очистить перед вводом
+    phone_input.send_keys(phone_number)
+
 
     #Ввод емайла
     try:
@@ -311,10 +318,13 @@ try:
 
     try:
     # Ищем где загружать файл.
-    file_input = driver.find_element(By.ID, "fileupload-input")
+        file_input = driver.find_element(By.ID, "fileupload-input")
 
-    found, folder_path  = find_files_by_keywords(root_folder, keywords)
-    found.extend([static_file_1,static_file_2,static_file_3])
+        found, folder_path  = find_files_by_keywords(root_folder, keywords)
+        found.extend([static_file_1,static_file_2,static_file_3])
+    except Exception as e:
+        logger.error('Пути не найдены, загрузи файлы самостоятельно')
+        input('Загружены?')
     for i in found:
     # Отправляем путь к файлу
         print(i)
@@ -332,7 +342,7 @@ try:
     except:
         finish_upload = input('Подтверди что все 7 файлов загружены')
 
-
+    pauses=input('Проверь данные и подверди клавишей Enter')
     complete_button = driver.find_element(By.CLASS_NAME, "u-form__sbt").click()
     
     try:
@@ -342,7 +352,14 @@ try:
         print("Ошибка! Капча неверна")
         looking_and_solve_capthca()
         complete_button = driver.find_element(By.CLASS_NAME, "u-form__sbt").click()
-
+        time.sleep(3)
+        try:
+            WebDriverWait(driver, 2).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "b-error_list-item"))
+        )
+            logger.error('Введи капчу руками')
+        except:
+            logger.info('Проверь, введена ли капча')
     except TimeoutException:
         print("Ошибки нет, идем дальше")
     
@@ -350,7 +367,7 @@ try:
         EC.element_to_be_clickable((By.ID, "confirm_but"))
     ).click()
 
-    check_up_email = input('Код пришел? \n')
+    time.sleep(10)
     code = get_code()
 
     email_code_input = wait.until(
@@ -364,12 +381,17 @@ try:
     checkbox = driver.find_element(By.ID, 'correct')
     driver.execute_script("arguments[0].click();", checkbox)
     # button_confirm_loan = driver.find_element(By.ID, "form-submit").click()
-    check_final = input('Зарегистрируй комментарий и после нажми интер чтобы цикл пошел заново')
-    # link = driver.find_element(By.XPATH, "//a[contains(@href, 'request_main/check')]")
-    # print(link.get_attribute('href'))    
-    # add_link(loan_id,link)
-    # move_folder(folder_path, dst_root)
-
+    input('Нажми кнопку подтвердить')
+    try:
+        logger.info('Пробую получить и записать ссылку')
+        link =  WebDriverWait(driver, 60).until(
+    EC.element_to_be_clickable((By.XPATH, "//a[contains(@href, 'request_main/check')]")))
+        print(link.get_attribute('href'))    
+        add_link(loan_id,link)
+        move_folder(folder_path, dst_root)
+        check_final = input('Зарегистрируй комментарий и после нажми интер чтобы цикл пошел заново')
+    except Exception as e:
+        logger.error(f'Ошибка! Не получилось подтвердить и записать!')
     end = time.time()
     print(f"Время выполнения блока: {end - start:.2f} секунд")
     time.sleep(150)
