@@ -25,7 +25,7 @@ from find_regions import get_code_region, bd
 from selenium.common.exceptions import WebDriverException, TimeoutException, InvalidArgumentException
 from text_appel import get_text
 from Find_nearst_MVD import get_mvd
-
+from AI_match import answer_ai
 
 
 #ПС
@@ -39,15 +39,15 @@ keywords = ["пс_заявление", "объяснение", "payment", "credi
 
 
 #ПС
-static_file_1 =  r"\\Pczaitenov\159\Ежедневная подача\Мезитова\ПС Агентский договор Триумвират - ЭквИта-Капитал (1).pdf"
-static_file_2 =  r"\\Pczaitenov\159\Ежедневная подача\Мезитова\ПС Доверенность от Триумвират на Эквиту (1).pdf"
-static_file_3 =  r"\\Pczaitenov\159\Ежедневная подача\Мезитова\ПС Мезитова довер (1).pdf"
+static_file_1 = r"\\Pczaitenov\159\Ежедневная подача\Мезитова\ПС Агентский договор Триумвират - ЭквИта-Капитал (1).pdf"
+static_file_2 = r"\\Pczaitenov\159\Ежедневная подача\Мезитова\ПС Доверенность от Триумвират на Эквиту (1).pdf"
+static_file_3 = r"\\Pczaitenov\159\Ежедневная подача\Мезитова\ПС Мезитова довер (1).pdf"
 
 
 #ДК
-# static_file_1 =  r"\\Pczaitenov\159\ДК. Ежедневная подача\Мезитова\ДК Агентский договор Ден. Крепость - Эквита (1) (1).pdf"
-# static_file_2 =  r"\\Pczaitenov\159\ДК. Ежедневная подача\Мезитова\ДК Доверенность от Денежная крепость на Эквиту.pdf"
-# static_file_3 =  r"\\Pczaitenov\159\ДК. Ежедневная подача\Мезитова\ДК Мезитова довер.pdf"
+# static_file_1 = r"\\Pczaitenov\159\ДК. Ежедневная подача\Мезитова\ДК Агентский договор Ден. Крепость - Эквита (1) (1).pdf"
+# static_file_2 = r"\\Pczaitenov\159\ДК. Ежедневная подача\Мезитова\ДК Доверенность от Денежная крепость на Эквиту.pdf"
+# static_file_3 = r"\\Pczaitenov\159\ДК. Ежедневная подача\Мезитова\ДК Мезитова довер.pdf"
 
 
 logger = logging.getLogger(__name__)
@@ -99,7 +99,11 @@ def looking_and_solve_capthca():
     captcha_input.clear()
     captcha_input.send_keys(captcha_text)
 
-
+def check_info(driver):
+    checkbox_label2 = WebDriverWait(driver, 10).until(
+    EC.element_to_be_clickable((By.CLASS_NAME, "checkbox"))
+    ).click()
+    button = driver.find_element(By.XPATH, "//button[contains(text(), 'Подать обращение от гражданина')]").click()
 
 driver = webdriver.Chrome(service=ChromiumService(ChromeDriverManager().install()))
 wait = WebDriverWait(driver, 15)
@@ -107,21 +111,24 @@ wait = WebDriverWait(driver, 15)
 
 start = time.time()
 try:
+    #Получение номера договора из папки + данные по клиенту
     loan_id = get_loan_id(root_folder)
     fio, birthday, region_id, reg_address = get_code_region(bd['ps'], loan_id)
     
+    #Ищем ближайшее мвд
     template_mvd = get_mvd(reg_address)
 
-    print(template_mvd)
-    print(loan_id)
-    print(region_id)
-    logger.debug('Запускаем браузер')
+    logger.info('Запускаем браузер')
     url = f"https://{region_id}.xn--b1aew.xn--p1ai/request_main"
     print(url)
     try:
+        logger.info('Пытаюсь подключится к странице')
         driver.get(url)
     except (WebDriverException, TimeoutException, InvalidArgumentException) as e:
-        print("Ошибка при загрузке страницы:", e)
+        logger.critical("Ошибка при загрузке страницы:", e)
+        raise TimeoutException
+
+    #Обработка базовой страницы, возможно не актуально
     try:
         time.sleep(3)
         checkbox_label = driver.find_element(By.XPATH, "//label[contains(., 'Министерство внутренних дел Российской Федерации')]").click()
@@ -137,10 +144,12 @@ try:
     except Exception as e:
          logging.info('Блока выбора обращений нет, идем дальше.')
 
-    checkbox_label2 = WebDriverWait(driver, 10).until(
-        EC.element_to_be_clickable((By.CLASS_NAME, "checkbox"))
-    ).click()
-    button = driver.find_element(By.XPATH, "//button[contains(text(), 'Подать обращение от гражданина')]").click()
+
+    #Базовый блок выбора с гос услугами, повторяется.
+    try:
+        check_info(driver)
+    except Exception as e:
+        logger.info(f'Блока нет идем дальше {e}')
     #Блок  авторизации гос услуг
     try:
         wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "modal-content")))
@@ -174,17 +183,58 @@ try:
         logging.info('Авторизация не требуется')
 
     try:
-        checkbox_label2 = WebDriverWait(driver, 60).until(
-            EC.element_to_be_clickable((By.CLASS_NAME, "checkbox"))
-        ).click()
-        button = driver.find_element(By.XPATH, "//button[contains(text(), 'Подать обращение от гражданина')]").click()
-        btn_gos_uslugi = wait.until(
-            EC.element_to_be_clickable((By.XPATH, "//a[.//img[@alt='Войти через Госуслуги']]"))
-        ).click()
-    except:
+        check_info(driver)
+    except Exception as e:
         logging.info('повторное обращение не требуется')
-    #Ввод емайла
 
+    #Выбор ближайшего мвд
+    try:
+        select_elem = driver.find_element(By.CSS_SELECTOR, ".select2-selection")
+        select_elem.click()
+
+        
+        options = WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul.select2-results__options li"))
+        )
+
+        texts = [o.text for o in options]
+        ai = answer_ai(texts, template_mvd)
+        print(f"AI suggests: {ai}")
+
+        # Теперь ищем элемент с нужным текстом и кликаем
+        for _ in range(3):  # Несколько попыток на случай проблем
+            try:
+                # Получаем свежий список элементов каждый раз, если что-то пошло не так
+                options = driver.find_elements(By.CSS_SELECTOR, "ul.select2-results__options li")
+
+                for opt in options:
+                    # Сравнение in с ррезультатом аи (регистронезависимо)
+                    if ai.lower() in opt.text.lower():
+                        try:
+                            opt.click()
+                            found = True
+                            print(f"Selected: {opt.text}")
+                            break
+                        except ElementClickInterceptedException:
+                            print("Клик не удался (перекрыт), скроллим к элементу и пробуем снова...")
+                            driver.execute_script("arguments[0].scrollIntoView();", opt)
+                            time.sleep(0.3)
+                            opt.click()
+                            found = True
+                            print(f"Selected after scroll: {opt.text}")
+                            break
+
+                if found:
+                    break  # Выбрали — выходим из внешнего цикла
+
+            except StaleElementReferenceException:
+                print("Элемент устарел, повторяем поиск...")
+                time.sleep(0.5)
+                continue
+    except Exception as e:
+        print(e)
+
+    #Ввод емайла
     wait = WebDriverWait(driver, 60)
     EMAIL_INPUT = wait.until(EC.visibility_of_element_located((By.ID, "email_check")))
 
