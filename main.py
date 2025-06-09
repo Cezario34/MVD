@@ -26,10 +26,10 @@ from selenium.common.exceptions import WebDriverException, TimeoutException, Inv
 from text_appel import get_text
 from Find_nearst_MVD import get_mvd
 from AI_match import answer_ai
-
+from add_commentory import add_link
 
 #ПС
-root_folder = r"\\Pczaitenov\159\Ежедневная подача\Мезитова\03.06.2025 ПС"
+root_folder = r"\\Pczaitenov\159\Ежедневная подача\Мезитова\05.06.2025 ПС"
 
 #ДК
 # root_folder = r"\\Pczaitenov\159\ДК. Ежедневная подача\Мезитова\03.06.2025 ДК"
@@ -100,35 +100,63 @@ def looking_and_solve_capthca():
     captcha_input.send_keys(captcha_text)
 
 def check_info(driver):
-    checkbox_label2 = WebDriverWait(driver, 10).until(
+    checkbox_label2 = WebDriverWait(driver, 60).until(
     EC.element_to_be_clickable((By.CLASS_NAME, "checkbox"))
     ).click()
-    button = driver.find_element(By.XPATH, "//button[contains(text(), 'Подать обращение от гражданина')]").click()
+    button =  WebDriverWait(driver, 60).until(
+    EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Подать обращение от гражданина')]"))).click()
+    wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "modal-content")))
+    btn_gos_uslugi = wait.until(
+        EC.element_to_be_clickable((By.XPATH, "//a[.//img[@alt='Войти через Госуслуги']]"))
+    ).click()
 
-driver = webdriver.Chrome(service=ChromiumService(ChromeDriverManager().install()))
-wait = WebDriverWait(driver, 15)
 
+try:
+    driver = webdriver.Chrome(service=ChromiumService(ChromeDriverManager().install()))
+    wait = WebDriverWait(driver, 15)
+    logger.info('Запускаем браузер')
+except Exception as e:
+    logger.critical(f'Браузер не запущен! {e}')
+    raise BaseException
 
 start = time.time()
 try:
     #Получение номера договора из папки + данные по клиенту
-    loan_id = get_loan_id(root_folder)
-    fio, birthday, region_id, reg_address = get_code_region(bd['ps'], loan_id)
+    try:
+        loan_id = get_loan_id(root_folder)
+        logger.info('Выбираю 1 папку и ее номер договора')
+    except Exception as e:
+        logger.critical(f'Папка не найдена, проверь путь! {e}')
+        raise FileNotFoundError
+
+    try:
+        fio, birthday, region_id, reg_address = get_code_region(bd['ps'], loan_id)
+        logger.info('Вытягиваю данные из бд')
+    except Exception as e:
+        logger.critical(f'Подключение к бд не выполненоо, данные не получены {e}')
+        raise ConnectionError
     
     #Ищем ближайшее мвд
-    template_mvd = get_mvd(reg_address)
-
-    logger.info('Запускаем браузер')
-    url = f"https://{region_id}.xn--b1aew.xn--p1ai/request_main"
-    print(url)
     try:
-        logger.info('Пытаюсь подключится к странице')
+        template_mvd = get_mvd(reg_address)
+        logger.info(f'Ищу ближайшее мвд - {template_mvd}')
+    except Exception as e:
+        logger.error(f'Ближайшее мвд не найдено! Подтверди ввод и введи его самостоятельно!')
+        input()
+
+
+
+    url = f"https://{region_id}.xn--b1aew.xn--p1ai/request_main"
+
+
+    try:
+        logger.info(f'Пытаюсь подключится к странице {url}')
         driver.get(url)
     except (WebDriverException, TimeoutException, InvalidArgumentException) as e:
         logger.critical("Ошибка при загрузке страницы:", e)
         raise TimeoutException
 
-    #Обработка базовой страницы, возможно не актуально
+    # Обработка базовой страницы, возможно не актуально
     try:
         time.sleep(3)
         checkbox_label = driver.find_element(By.XPATH, "//label[contains(., 'Министерство внутренних дел Российской Федерации')]").click()
@@ -148,15 +176,12 @@ try:
     #Базовый блок выбора с гос услугами, повторяется.
     try:
         check_info(driver)
+        logger.info('Кликаю по заявлению от гражданина')
     except Exception as e:
         logger.info(f'Блока нет идем дальше {e}')
     #Блок  авторизации гос услуг
     try:
-        wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "modal-content")))
-        btn_gos_uslugi = wait.until(
-            EC.element_to_be_clickable((By.XPATH, "//a[.//img[@alt='Войти через Госуслуги']]"))
-        ).click()
-        time.sleep(5)
+        time.sleep(3)
         inputs = driver.find_elements(By.TAG_NAME, "input")
         for inp in inputs:
             print(inp.get_attribute("outerHTML"))
@@ -164,11 +189,15 @@ try:
         login_input = wait.until(
             EC.visibility_of_element_located((By.ID, "login"))
         )
-        login_input.send_keys(person.login)
+        login_gos = input('Введи логин гос услуг')
+        # login_input.send_keys(person.login)
+        login_input.send_keys(login_gos)
+        password_input_gos = input('Введи пароль гос услуг')
         password_input = wait.until(
             EC.visibility_of_element_located((By.ID, "password"))
         )
-        password_input.send_keys(person.password)
+        password_input.send_keys(password_input_gos)
+        # password_input.send_keys(person.password)
         login_button = wait.until(
             EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Войти')]"))
         )
@@ -184,6 +213,7 @@ try:
 
     try:
         check_info(driver)
+        logger.info('Кликаю по заявлению от гражданина')
     except Exception as e:
         logging.info('повторное обращение не требуется')
 
@@ -232,40 +262,54 @@ try:
                 time.sleep(0.5)
                 continue
     except Exception as e:
-        print(e)
+        logger.error(f'Выбор мвд не удался, проблема {e}')
+        hand_mvd = input('Выбери мвд руками в браузере и нажми интер тут')
 
     #Ввод емайла
-    wait = WebDriverWait(driver, 60)
-    EMAIL_INPUT = wait.until(EC.visibility_of_element_located((By.ID, "email_check")))
+    try:
+        wait = WebDriverWait(driver, 60)
+        EMAIL_INPUT = wait.until(EC.visibility_of_element_located((By.ID, "email_check")))
 
-    actions = ActionChains(driver)  # ← вот
-    actions.move_to_element(EMAIL_INPUT).click().perform()
-    driver.execute_script('arguments[0].value = ""', EMAIL_INPUT)
-    EMAIL_INPUT.send_keys(person.email)
-    region_mvd= input('Вставь регион клиента в мвд')
+        actions = ActionChains(driver)
+        actions.move_to_element(EMAIL_INPUT).click().perform()
+        driver.execute_script('arguments[0].value = ""', EMAIL_INPUT)
+        EMAIL_INPUT.send_keys(person.email)
+        logger.info('Вводим майл')
+    except Exception as e:
+        logger.error(f'Майл не введен, ошибка {e}')
+
     
     #Должность
-    post_input = driver.find_element(By.NAME, "post")
-    post_input.send_keys("ООО ПКО ЭКВИТА КАПИТАЛ")
-    locality=get_Locality(root_folder)
-    # Для ФИО (fio)
-    fio_input = driver.find_element(By.NAME, "fio")
-    fio_input.send_keys(locality)
+    try:
+        post_input = driver.find_element(By.NAME, "post")
+        post_input.send_keys("ООО ПКО ЭКВИТА КАПИТАЛ")
+        locality=get_Locality(root_folder)
+        # Для ФИО (fio)
+        fio_input = driver.find_element(By.NAME, "fio")
+        fio_input.send_keys(locality)
+        logger.info('Вводим должность')
+    except:
+        logger.error('Текст обращения не сформирован! Введи в ручную и нажми интер')
 
-    print(EMAIL_INPUT.get_attribute('value'))
-    
-    TEXT = get_text(locality=locality,fio=fio,birthday=birthday)
+    #Обращение    
+    try:
+        TEXT = get_text(locality=locality,fio=fio,birthday=birthday)
+        logger.info('Формирую текст обращения')
+    except:
+        logger.error('Текст обращения не сформирован! Введи в ручную и нажми интер')
+        input()
     TEXT_INPUT = wait.until(
         EC.visibility_of_element_located((By.CLASS_NAME, "textarea"))
     )
     TEXT_INPUT.send_keys(TEXT)
 
-    # #Поиск капчи
+    #Поиск капчи
     try:
         looking_and_solve_capthca() 
     except:
-        logger.info('Проблема с капчей. Введи руками или дождись следующего шага')
+        logger.error('Проблема с капчей. Введи руками или дождись следующего шага')
 
+    try:
     # Ищем где загружать файл.
     file_input = driver.find_element(By.ID, "fileupload-input")
 
@@ -286,7 +330,7 @@ try:
             lambda d: len(d.find_elements(By.CLASS_NAME, "half_link")) == 7
         )
     except:
-        finish_upload = inpurt('Подтверди что все 7 файлов загружены')
+        finish_upload = input('Подтверди что все 7 файлов загружены')
 
 
     complete_button = driver.find_element(By.CLASS_NAME, "u-form__sbt").click()
@@ -320,9 +364,10 @@ try:
     checkbox = driver.find_element(By.ID, 'correct')
     driver.execute_script("arguments[0].click();", checkbox)
     # button_confirm_loan = driver.find_element(By.ID, "form-submit").click()
+    check_final = input('Зарегистрируй комментарий и после нажми интер чтобы цикл пошел заново')
     # link = driver.find_element(By.XPATH, "//a[contains(@href, 'request_main/check')]")
     # print(link.get_attribute('href'))    
-    
+    # add_link(loan_id,link)
     # move_folder(folder_path, dst_root)
 
     end = time.time()
