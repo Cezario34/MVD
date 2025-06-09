@@ -1,7 +1,8 @@
+import pandas as pd
+
 from config_data import conn_string, main_db_config
 from sqlalchemy import create_engine, text
-import pandas as pd
-from loans_cheker import get_loan_id
+
 
 def get_query(bd, loan_id):
     return f"""
@@ -40,11 +41,14 @@ def get_code_region(bd: str, loan_id: str, params=None):
         birthday = df.iloc[0]['birthday']
         region_code = df.iloc[0]['region_code']
         reg_address = df.iloc[0]['reg_address']
-        return fio, birthday, region_code,reg_address
+        return fio, birthday, region_code, reg_address
     else:
-        return None, None, None
+        return None, None, None, None
+
 
 bd = {
     'ps' : main_db_config.ps,
     'dk': main_db_config.dk 
 }
+
+
