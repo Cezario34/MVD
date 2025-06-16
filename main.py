@@ -35,7 +35,7 @@ from urllib.parse import quote_plus
 current_date = date.today()
 #ПС
 # root_folder = fr"\\Pczaitenov\159\Ежедневная подача\Галимзянова\{current_date} ПС"
-root_folder = fr"\\Pczaitenov\159\Ежедневная подача\Галимзянова\11.06.2025 ПС"
+root_folder = fr"\\Pczaitenov\159\Ежедневная подача\Галимзянова\14.06.2025 ПС"
 
 
 #ДК
@@ -222,7 +222,7 @@ try:
                     driver.execute_script(f"window.open('https://www.google.com/search?q={encoded_query}');")
                     driver.switch_to.window(driver.window_handles[-1])
                     hand_mvd = input('Выбери мвд руками в браузере и нажми интер тут')
-
+                    driver.switch_to.window(driver.window_handles[0])
                 found = False
                 # Теперь ищем элемент с нужным текстом и кликаем
                 for _ in range(3):  # Несколько попыток на случай проблем
@@ -362,7 +362,7 @@ try:
                 EC.element_to_be_clickable((By.ID, "confirm_but"))
             ).click()
             #Получение кода из письма + подтверждение
-            time.sleep(5)
+            time.sleep(3)
             code = get_code()
 
 

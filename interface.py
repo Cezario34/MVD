@@ -12,6 +12,6 @@ class Example(Frame):
 if __name__ == '__main__':
     root = Tk()
     root.title("Пример 1. Курс 'Создание графического редактора на python'")
-    root.geometry("250x150+300+300")
+    root.geometry("650x650+100+100")
     app = Example(root)
     root.mainloop()
