@@ -379,15 +379,16 @@ try:
             # button_confirm_loan = driver.find_element(By.ID, "form-submit").click()
 
             #Финальный блок с отправкой заявления
-            input('Нажми кнопку подтвердить')
+            input('Нажми кнопку ОТПРАВИТЬ, а затем нажми Enter')
             counter += 1
             try:
+                logger.info(f'Номер договора {loan_id}')
                 logger.info('Пробую получить и записать ссылку')
                 link = WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.XPATH, "//a[contains(@href, 'request_main/check')]"))
                 )
                 # Извлекаем адрес
-                href = link.get_attribute("href")
+                href = link.get_attribute("outerHTML")
                 logger.info('Ссылка получена')
                 print(href)    
                 logger.info('Пробую записать в файл')
@@ -398,7 +399,7 @@ try:
             except Exception as e:
                 logger.error(f'Ошибка! Не получилось подтвердить и записать! {e}')
                 logger.info(f'Номер договора {loan_id}')
-                input('Зарегистрируй комментарий и после нажми интер чтобы цикл пошел заново')
+                input('Зарегистрируй комментарий и после нажми Enter чтобы цикл пошел заново')
                 move_folder(folder_path, dst_root)
             end = time.time()
             print(f"Время выполнения блока: {end - start:.2f} секунд")
