@@ -100,6 +100,8 @@ def screenshot_and_solve(driver, element, filename='captcha.png'):
 def looking_and_solve_capthca():
     captcha_element = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".captcha-img")))
     captcha_text = screenshot_and_solve(driver, captcha_element)
+    if len(captcha_text)<5:
+        captcha_text = screenshot_and_solve(driver, captcha_element)
     print("Решение капчи:", captcha_text)
 
     # # Решение Каптчи
