@@ -29,7 +29,7 @@ from AI_match import answer_ai
 from add_commentory import add_link
 
 #ПС
-root_folder = r"\\Pczaitenov\159\Ежедневная подача\Галимзянова\07.06.2025 ПС"
+root_folder = r"\\Pczaitenov\159\Ежедневная подача\Галимзянова\10.06.2025 ПС"
 
 #ДК
 # root_folder = r"\\Pczaitenov\159\ДК. Ежедневная подача\Мезитова\03.06.2025 ДК"
@@ -120,287 +120,290 @@ except Exception as e:
     logger.critical(f'Браузер не запущен! {e}')
     raise BaseException
 
-start = time.time()
-try:
-    #Получение номера договора из папки + данные по клиенту
+while True:
+    start = time.time()
     try:
-        loan_id = get_loan_id(root_folder)
-        logger.info('Выбираю 1 папку и ее номер договора')
-    except Exception as e:
-        logger.critical(f'Папка не найдена, проверь путь! {e}')
-        raise FileNotFoundError
+        #Получение номера договора из папки + данные по клиенту
+        try:
+            loan_id = get_loan_id(root_folder)
+            logger.info('Выбираю 1 папку и ее номер договора')
+        except Exception as e:
+            logger.critical(f'Папка не найдена, проверь путь! {e}')
+            raise FileNotFoundError
 
-    try:
-        fio, birthday, region_id, reg_address = get_code_region(bd['ps'], loan_id)
-        logger.info('Вытягиваю данные из бд')
-    except Exception as e:
-        logger.critical(f'Подключение к бд не выполненоо, данные не получены {e}')
-        raise ConnectionError
-    
-    #Ищем ближайшее мвд
-    try:
-        template_mvd = get_mvd(reg_address)
-        logger.info(f'Ищу ближайшее мвд - {template_mvd}')
-    except Exception as e:
-        logger.error(f'Ближайшее мвд не найдено! Подтверди ввод и введи его самостоятельно!')
-        input()
-
-
-
-    url = f"https://{region_id}.xn--b1aew.xn--p1ai/request_main"
-
-
-    try:
-        logger.info(f'Пытаюсь подключится к странице {url}')
-        driver.get(url)
-    except (WebDriverException, TimeoutException, InvalidArgumentException) as e:
-        logger.critical("Ошибка при загрузке страницы:", e)
-        raise TimeoutException
-
-    # Обработка базовой страницы, возможно не актуально
-    try:
-        time.sleep(3)
-        checkbox_label = driver.find_element(By.XPATH, "//label[contains(., 'Министерство внутренних дел Российской Федерации')]").click()
-
-        wait = WebDriverWait(driver, 5)
-        wait.until(
-            EC.element_to_be_clickable((By.ID, "f"))
-        )
-
-        button = driver.find_element(By.ID, "f").click()
+        try:
+            fio, birthday, region_id, reg_address = get_code_region(bd['ps'], loan_id)
+            logger.info('Вытягиваю данные из бд')
+        except Exception as e:
+            logger.critical(f'Подключение к бд не выполненоо, данные не получены {e}')
+            raise ConnectionError
+        if any(x is None for x in [fio, birthday, region_id, reg_address]):
+            move_folder(folder_path, dst_root)
+            logger.error(f'Клиент {loan_id} не проходит по меткам или ОД')
+            input('Проверь метки по клиенту и подтверди интером')
+            continue
+        #Ищем ближайшее мвд
+        try:
+            template_mvd = get_mvd(reg_address)
+            logger.info(f'Ищу ближайшее мвд - {template_mvd}')
+        except Exception as e:
+            logger.error(f'Ближайшее мвд не найдено! Подтверди ввод и введи его самостоятельно!')
+            input()
 
 
-    except Exception as e:
-         logging.info('Блока выбора обращений нет, идем дальше.')
+
+        url = f"https://{region_id}.xn--b1aew.xn--p1ai/request_main"
 
 
-    #Базовый блок выбора с гос услугами, повторяется.
-    try:
-        check_info(driver)
-        logger.info('Кликаю по заявлению от гражданина')
-    except Exception as e:
-        logger.info(f'Блока нет идем дальше {e}')
-    #Блок  авторизации гос услуг
-    # try:
-    #     time.sleep(3)
-    #     inputs = driver.find_elements(By.TAG_NAME, "input")
-    #     for inp in inputs:
-    #         print(inp.get_attribute("outerHTML"))
+        try:
+            logger.info(f'Пытаюсь подключится к странице {url}')
+            driver.get(url)
+        except (WebDriverException, TimeoutException, InvalidArgumentException) as e:
+            logger.critical("Ошибка при загрузке страницы:", e)
+            raise TimeoutException
 
-    #     login_input = wait.until(
-    #         EC.visibility_of_element_located((By.ID, "login"))
-    #     )
-    #     login_gos = input('Введи логин гос услуг')
-    #     # login_input.send_keys(person.login)
-    #     login_input.send_keys(login_gos)
-    #     password_input_gos = input('Введи пароль гос услуг')
-    #     password_input = wait.until(
-    #         EC.visibility_of_element_located((By.ID, "password"))
-    #     )
-    #     password_input.send_keys(password_input_gos)
-    #     # password_input.send_keys(person.password)
-    #     login_button = wait.until(
-    #         EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Войти')]"))
-    #     )
-    #     login_button.click()
-    #     time.sleep(3)
-    #     # short_code=input('Вставьте 6 код\n')
-    #     # code_input = wait.until(
-    #     #     EC.visibility_of_element_located((By.CSS_SELECTOR, "esia-code-input input"))
-    #     # )
-    #     # code_input.send_keys(short_code)
-    # except TimeoutException:
-    #     logging.info('Авторизация не требуется')
+        # Обработка базовой страницы, возможно не актуально
+        try:
+            time.sleep(3)
+            checkbox_label = driver.find_element(By.XPATH, "//label[contains(., 'Министерство внутренних дел Российской Федерации')]").click()
 
-    try:
-        check_info(driver)
-        logger.info('Кликаю по заявлению от гражданина')
-    except Exception as e:
-        logging.info('повторное обращение не требуется')
+            wait = WebDriverWait(driver, 5)
+            wait.until(
+                EC.element_to_be_clickable((By.ID, "f"))
+            )
 
-    #Выбор ближайшего мвд
-    try:
-        select_elem = driver.find_element(By.CSS_SELECTOR, ".select2-selection")
-        select_elem.click()
+            button = driver.find_element(By.ID, "f").click()
+
+
+        except Exception as e:
+            logging.info('Блока выбора обращений нет, идем дальше.')
+
+
+        #Базовый блок выбора с гос услугами, повторяется.
+        try:
+            check_info(driver)
+            logger.info('Кликаю по заявлению от гражданина')
+        except Exception as e:
+            logger.info(f'Блока нет идем дальше {e}')
+        #Блок  авторизации гос услуг
+        # try:
+        #     time.sleep(3)
+        #     inputs = driver.find_elements(By.TAG_NAME, "input")
+        #     for inp in inputs:
+        #         print(inp.get_attribute("outerHTML"))
+
+        #     login_input = wait.until(
+        #         EC.visibility_of_element_located((By.ID, "login"))
+        #     )
+        #     login_gos = input('Введи логин гос услуг')
+        #     # login_input.send_keys(person.login)
+        #     login_input.send_keys(login_gos)
+        #     password_input_gos = input('Введи пароль гос услуг')
+        #     password_input = wait.until(
+        #         EC.visibility_of_element_located((By.ID, "password"))
+        #     )
+        #     password_input.send_keys(password_input_gos)
+        #     # password_input.send_keys(person.password)
+        #     login_button = wait.until(
+        #         EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Войти')]"))
+        #     )
+        #     login_button.click()
+        #     time.sleep(3)
+        #     # short_code=input('Вставьте 6 код\n')
+        #     # code_input = wait.until(
+        #     #     EC.visibility_of_element_located((By.CSS_SELECTOR, "esia-code-input input"))
+        #     # )
+        #     # code_input.send_keys(short_code)
+        # except TimeoutException:
+        #     logging.info('Авторизация не требуется')
+
+        try:
+            check_info(driver)
+            logger.info('Кликаю по заявлению от гражданина')
+        except Exception as e:
+            logging.info('повторное обращение не требуется')
+
+        #Выбор ближайшего мвд
+        try:
+            select_elem = driver.find_element(By.CSS_SELECTOR, ".select2-selection")
+            select_elem.click()
+
+            
+            options = WebDriverWait(driver, 10).until(
+                EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul.select2-results__options li"))
+            )
+
+            texts = [o.text for o in options]
+            ai = answer_ai(texts, template_mvd)
+            print(f"AI suggests: {ai}")
+            found = False
+            # Теперь ищем элемент с нужным текстом и кликаем
+            for _ in range(3):  # Несколько попыток на случай проблем
+                try:
+                    # Получаем свежий список элементов каждый раз, если что-то пошло не так
+                    options = driver.find_elements(By.CSS_SELECTOR, "ul.select2-results__options li")
+
+                    for opt in options:
+                        # Сравнение in с ррезультатом аи (регистронезависимо)
+                        if ai.lower() in opt.text.lower():
+                            try:
+                                opt.click()
+                                found = True
+                                print(f"Selected: {opt.text}")
+                                break
+                            except ElementClickInterceptedException:
+                                print("Клик не удался (перекрыт), скроллим к элементу и пробуем снова...")
+                                driver.execute_script("arguments[0].scrollIntoView();", opt)
+                                time.sleep(0.3)
+                                opt.click()
+                                found = True
+                                print(f"Selected after scroll: {opt.text}")
+                                break
+
+                    if found:
+                        break  # Выбрали — выходим из внешнего цикла
+
+                except StaleElementReferenceException:
+                    print("Элемент устарел, повторяем поиск...")
+                    time.sleep(0.5)
+                    continue
+        except Exception as e:
+            logger.error(f'Выбор мвд не удался, проблема {e}')
+            hand_mvd = input('Выбери мвд руками в браузере и нажми интер тут')
+        
+        
+        phone_input = driver.find_element(By.ID, "phone_check")
+        phone_input.clear()  # если нужно очистить перед вводом
+        phone_input.send_keys(phone_number)
+
+
+        #Ввод емайла
+        try:
+            wait = WebDriverWait(driver, 60)
+            EMAIL_INPUT = wait.until(EC.visibility_of_element_located((By.ID, "email_check")))
+
+            actions = ActionChains(driver)
+            actions.move_to_element(EMAIL_INPUT).click().perform()
+            driver.execute_script('arguments[0].value = ""', EMAIL_INPUT)
+            EMAIL_INPUT.send_keys(person.email)
+            logger.info('Вводим майл')
+        except Exception as e:
+            logger.error(f'Майл не введен, ошибка {e}')
 
         
-        options = WebDriverWait(driver, 10).until(
-            EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul.select2-results__options li"))
+        #Должность
+        try:
+            post_input = driver.find_element(By.NAME, "post")
+            post_input.send_keys("ООО ПКО ЭКВИТА КАПИТАЛ")
+            locality=get_Locality(root_folder)
+            # Для ФИО (fio)
+            fio_input = driver.find_element(By.NAME, "fio")
+            fio_input.send_keys(locality)
+            logger.info('Вводим должность')
+        except:
+            logger.error('Текст обращения не сформирован! Введи в ручную и нажми интер')
+
+        #Обращение    
+        try:
+            TEXT = get_text(locality=locality,fio=fio,birthday=birthday)
+            logger.info('Формирую текст обращения')
+        except:
+            logger.error('Текст обращения не сформирован! Введи в ручную и нажми интер')
+            input()
+        TEXT_INPUT = wait.until(
+            EC.visibility_of_element_located((By.CLASS_NAME, "textarea"))
         )
+        TEXT_INPUT.send_keys(TEXT)
 
-        texts = [o.text for o in options]
-        ai = answer_ai(texts, template_mvd)
-        print(f"AI suggests: {ai}")
-        found = False
-        # Теперь ищем элемент с нужным текстом и кликаем
-        for _ in range(3):  # Несколько попыток на случай проблем
-            try:
-                # Получаем свежий список элементов каждый раз, если что-то пошло не так
-                options = driver.find_elements(By.CSS_SELECTOR, "ul.select2-results__options li")
+        #Поиск капчи
+        try:
+            looking_and_solve_capthca() 
+        except:
+            logger.error('Проблема с капчей. Введи руками или дождись следующего шага')
 
-                for opt in options:
-                    # Сравнение in с ррезультатом аи (регистронезависимо)
-                    if ai.lower() in opt.text.lower():
-                        try:
-                            opt.click()
-                            found = True
-                            print(f"Selected: {opt.text}")
-                            break
-                        except ElementClickInterceptedException:
-                            print("Клик не удался (перекрыт), скроллим к элементу и пробуем снова...")
-                            driver.execute_script("arguments[0].scrollIntoView();", opt)
-                            time.sleep(0.3)
-                            opt.click()
-                            found = True
-                            print(f"Selected after scroll: {opt.text}")
-                            break
+        try:
+        # Ищем где загружать файл.
+            file_input = driver.find_element(By.ID, "fileupload-input")
 
-                if found:
-                    break  # Выбрали — выходим из внешнего цикла
+            found, folder_path  = find_files_by_keywords(root_folder, keywords)
+            found.extend([static_file_1,static_file_2,static_file_3])
+        except Exception as e:
+            logger.error('Пути не найдены, загрузи файлы самостоятельно')
+            input('Загружены?')
+        for i in found:
+        # Отправляем путь к файлу
+            print(i)
+            file_input.send_keys(i)
+            WebDriverWait(driver, 30).until(
+                lambda d: d.find_element(By.ID, "fileupload-list").value_of_css_property("opacity") == '1'
+            )
+            WebDriverWait(driver, 30).until(
+                EC.presence_of_element_located((By.CLASS_NAME, "half_link"))
+            )
+        try:
+            WebDriverWait(driver, 30).until(
+                lambda d: len(d.find_elements(By.CLASS_NAME, "half_link")) == 7
+            )
+        except:
+            finish_upload = input('Подтверди что все 7 файлов загружены')
 
-            except StaleElementReferenceException:
-                print("Элемент устарел, повторяем поиск...")
-                time.sleep(0.5)
-                continue
-    except Exception as e:
-        logger.error(f'Выбор мвд не удался, проблема {e}')
-        hand_mvd = input('Выбери мвд руками в браузере и нажми интер тут')
-    
-    
-    phone_input = driver.find_element(By.ID, "phone_check")
-    phone_input.clear()  # если нужно очистить перед вводом
-    phone_input.send_keys(phone_number)
-
-
-    #Ввод емайла
-    try:
-        wait = WebDriverWait(driver, 60)
-        EMAIL_INPUT = wait.until(EC.visibility_of_element_located((By.ID, "email_check")))
-
-        actions = ActionChains(driver)
-        actions.move_to_element(EMAIL_INPUT).click().perform()
-        driver.execute_script('arguments[0].value = ""', EMAIL_INPUT)
-        EMAIL_INPUT.send_keys(person.email)
-        logger.info('Вводим майл')
-    except Exception as e:
-        logger.error(f'Майл не введен, ошибка {e}')
-
-    
-    #Должность
-    try:
-        post_input = driver.find_element(By.NAME, "post")
-        post_input.send_keys("ООО ПКО ЭКВИТА КАПИТАЛ")
-        locality=get_Locality(root_folder)
-        # Для ФИО (fio)
-        fio_input = driver.find_element(By.NAME, "fio")
-        fio_input.send_keys(locality)
-        logger.info('Вводим должность')
-    except:
-        logger.error('Текст обращения не сформирован! Введи в ручную и нажми интер')
-
-    #Обращение    
-    try:
-        TEXT = get_text(locality=locality,fio=fio,birthday=birthday)
-        logger.info('Формирую текст обращения')
-    except:
-        logger.error('Текст обращения не сформирован! Введи в ручную и нажми интер')
-        input()
-    TEXT_INPUT = wait.until(
-        EC.visibility_of_element_located((By.CLASS_NAME, "textarea"))
-    )
-    TEXT_INPUT.send_keys(TEXT)
-
-    #Поиск капчи
-    try:
-        looking_and_solve_capthca() 
-    except:
-        logger.error('Проблема с капчей. Введи руками или дождись следующего шага')
-
-    try:
-    # Ищем где загружать файл.
-        file_input = driver.find_element(By.ID, "fileupload-input")
-
-        found, folder_path  = find_files_by_keywords(root_folder, keywords)
-        found.extend([static_file_1,static_file_2,static_file_3])
-    except Exception as e:
-        logger.error('Пути не найдены, загрузи файлы самостоятельно')
-        input('Загружены?')
-    for i in found:
-    # Отправляем путь к файлу
-        print(i)
-        file_input.send_keys(i)
-        WebDriverWait(driver, 30).until(
-            lambda d: d.find_element(By.ID, "fileupload-list").value_of_css_property("opacity") == '1'
-        )
-        WebDriverWait(driver, 30).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "half_link"))
-        )
-    try:
-        WebDriverWait(driver, 30).until(
-            lambda d: len(d.find_elements(By.CLASS_NAME, "half_link")) == 7
-        )
-    except:
-        finish_upload = input('Подтверди что все 7 файлов загружены')
-
-    pauses=input('Проверь данные и подверди клавишей Enter')
-    complete_button = driver.find_element(By.CLASS_NAME, "u-form__sbt").click()
-    
-    try:
-        WebDriverWait(driver, 2).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "b-error_list-item"))
-        )
-        print("Ошибка! Капча неверна")
-        looking_and_solve_capthca()
+        pauses=input('Проверь данные и подверди клавишей Enter')
         complete_button = driver.find_element(By.CLASS_NAME, "u-form__sbt").click()
-        time.sleep(3)
+        
         try:
             WebDriverWait(driver, 2).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "b-error_list-item"))
+                EC.presence_of_element_located((By.CLASS_NAME, "b-error_list-item"))
+            )
+            print("Ошибка! Капча неверна")
+            looking_and_solve_capthca()
+            complete_button = driver.find_element(By.CLASS_NAME, "u-form__sbt").click()
+            time.sleep(3)
+            try:
+                WebDriverWait(driver, 2).until(
+                EC.presence_of_element_located((By.CLASS_NAME, "b-error_list-item"))
+            )
+                logger.error('Введи капчу руками')
+            except:
+                logger.info('Проверь, введена ли капча')
+        except TimeoutException:
+            print("Ошибки нет, идем дальше")
+        
+        sending_letter = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.ID, "confirm_but"))
+        ).click()
+
+        time.sleep(10)
+        code = get_code()
+
+        email_code_input = wait.until(
+            EC.visibility_of_element_located((By.CLASS_NAME, "confirm-mail"))
         )
-            logger.error('Введи капчу руками')
-        except:
-            logger.info('Проверь, введена ли капча')
-    except TimeoutException:
-        print("Ошибки нет, идем дальше")
-    
-    sending_letter = WebDriverWait(driver, 10).until(
-        EC.element_to_be_clickable((By.ID, "confirm_but"))
-    ).click()
+        email_code_input.send_keys(code)
+        logger.info('код введен')
 
-    time.sleep(10)
-    code = get_code()
+        button_confirm_email = driver.find_element(By.ID, "confirm_mail").click()
 
-    email_code_input = wait.until(
-        EC.visibility_of_element_located((By.CLASS_NAME, "confirm-mail"))
-    )
-    email_code_input.send_keys(code)
-    logger.info('код введен')
+        checkbox = driver.find_element(By.ID, 'correct')
+        driver.execute_script("arguments[0].click();", checkbox)
+        # button_confirm_loan = driver.find_element(By.ID, "form-submit").click()
+        input('Нажми кнопку подтвердить')
+        try:
+            logger.info('Пробую получить и записать ссылку')
+            link =  WebDriverWait(driver, 60).until(
+        EC.element_to_be_clickable((By.XPATH, "//a[contains(@href, 'request_main/check')]")))
+            print(link.get_attribute('href'))    
+            add_link(loan_id,link)
+            move_folder(folder_path, dst_root)
+            check_final = input('Зарегистрируй комментарий и после нажми интер чтобы цикл пошел заново')
+        except Exception as e:
+            logger.error(f'Ошибка! Не получилось подтвердить и записать!')
+        end = time.time()
+        print(f"Время выполнения блока: {end - start:.2f} секунд")
+        time.sleep(150)
 
-    button_confirm_email = driver.find_element(By.ID, "confirm_mail").click()
-
-    checkbox = driver.find_element(By.ID, 'correct')
-    driver.execute_script("arguments[0].click();", checkbox)
-    # button_confirm_loan = driver.find_element(By.ID, "form-submit").click()
-    input('Нажми кнопку подтвердить')
-    try:
-        logger.info('Пробую получить и записать ссылку')
-        link =  WebDriverWait(driver, 60).until(
-    EC.element_to_be_clickable((By.XPATH, "//a[contains(@href, 'request_main/check')]")))
-        print(link.get_attribute('href'))    
-        add_link(loan_id,link)
-        move_folder(folder_path, dst_root)
-        check_final = input('Зарегистрируй комментарий и после нажми интер чтобы цикл пошел заново')
     except Exception as e:
-        logger.error(f'Ошибка! Не получилось подтвердить и записать!')
-    end = time.time()
-    print(f"Время выполнения блока: {end - start:.2f} секунд")
-    time.sleep(150)
-
-except Exception as e:
-    logger.exception(f"Ошибка в процессе: {e}")
-    with open("error.log", "a", encoding="utf-8") as f:
-                f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] СКРИПТ УПАЛ! . Ошибка: {e}\n")
-
-finally:
-    driver.quit()
-    logger.info("Браузер закрыт.")
+        logger.exception(f"Ошибка в процессе: {e}")
+        with open("error.log", "a", encoding="utf-8") as f:
+                    f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] СКРИПТ УПАЛ! . Ошибка: {e}\n")
+        driver.quit()
+        logger.info("Браузер закрыт.")

@@ -1,8 +1,12 @@
 from dataclasses import dataclass
 from environs import Env
 
+
+
+env_path=r"\\Pczaitenov\159\Ежедневная подача\Мезитова\config\.env"
 env = Env()
-env.read_env(override=True)
+env.read_env(env_path)  # <-- путь указываем здесь!
+
 
 
 @dataclass
