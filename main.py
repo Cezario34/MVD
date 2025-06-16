@@ -18,7 +18,7 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
 from captcha import solve_captcha
 from tempfile import NamedTemporaryFile
-from loans_cheker import find_files_by_keywords, move_folder, get_loan_id, get_Locality
+from loans_cheker import find_files_by_keywords, move_folder, get_loan_id, get_Locality,cleanup_temp_uploads
 from urllib.parse import urljoin
 from mail_pars import get_code
 from config_data import person
@@ -42,7 +42,7 @@ root_folder = fr"\\Pczaitenov\159\Ежедневная подача\Галимз
 # root_folder = r"\\Pczaitenov\159\ДК. Ежедневная подача\Мезитова\03.06.2025 ДК"
 current_date = today.strftime("%d.%m.%Y")
 dst_root = fr"\\Pczaitenov\159\Ежедневная подача\Галимзянова\Выполненные\{current_date}\ПС"
-keywords = ["пс_заявление", "объяснение", "payment", "credit", "справка"] 
+keywords = [".docx", ".xlsx", ".pdf", ".docx.doc"]
 
 phone_number = 89600476437
 
@@ -319,6 +319,7 @@ try:
             except Exception as e:
                 logger.error('Пути не найдены, загрузи файлы самостоятельно')
                 input('Загружены?')
+                
             for i in found:
             # Отправляем путь к файлу
                 file_input.send_keys(i)
@@ -336,6 +337,7 @@ try:
                 finish_upload = input('Подтверди что все 7 файлов загружены')
 
             pauses=input('Проверь данные и подверди клавишей Enter')
+            cleanup_temp_uploads()
             complete_button = driver.find_element(By.CLASS_NAME, "u-form__sbt").click()
 
 
