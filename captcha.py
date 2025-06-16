@@ -1,8 +1,9 @@
 from twocaptcha import TwoCaptcha
 from environs import Env
 
+env_path=r"\\Pczaitenov\159\Ежедневная подача\Мезитова\config\.env"
 env = Env()
-env.read_env()
+env.read_env(env_path)
 API = env('API_KEY')
 
 
