@@ -124,7 +124,7 @@ try:
     driver = webdriver.Chrome(service=ChromiumService(ChromeDriverManager().install()))
     wait = WebDriverWait(driver, 15)
     logger.info('Запускаем браузер')
-
+    counter = 0
     while True:
         start = time.time()
         try:
@@ -193,12 +193,12 @@ try:
             except Exception as e:
                 logger.info(f'Блока нет идем дальше {e}')
 
+            if counter == 0:
+                try:
+                    check_info(driver)
 
-            try:
-                check_info(driver)
-
-            except Exception as e:
-                logging.info('повторное обращение не требуется')
+                except Exception as e:
+                    logging.info('повторное обращение не требуется')
 
             #Выбор ближайшего мвд
             try:
@@ -380,9 +380,10 @@ try:
 
             #Финальный блок с отправкой заявления
             input('Нажми кнопку подтвердить')
+            counter += 1
             try:
                 logger.info('Пробую получить и записать ссылку')
-                link =  WebDriverWait(driver, 60).until(
+                link =  WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, "//a[contains(@href, 'request_main/check')]")))
                 logger.info('Ссылка получена')
                 print(link.get_attribute('href'))    
