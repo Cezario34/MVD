@@ -383,12 +383,15 @@ try:
             counter += 1
             try:
                 logger.info('Пробую получить и записать ссылку')
-                link =  WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, "//a[contains(@href, 'request_main/check')]")))
+                link = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, "//a[contains(@href, 'request_main/check')]"))
+                )
+                # Извлекаем адрес
+                href = link.get_attribute("href")
                 logger.info('Ссылка получена')
-                print(link.get_attribute('href'))    
+                print(href)    
                 logger.info('Пробую записать в файл')
-                add_link(loan_id,link)
+                add_link(loan_id,href)
                 logger.info('Записал в файл. Перемещаю папки')
                 move_folder(folder_path, dst_root)
                 check_final = input('Зарегистрируй комментарий и после нажми интер чтобы цикл пошел заново')
