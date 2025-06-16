@@ -3,6 +3,8 @@ import time
 import sys
 import requests
 
+
+from datetime import date
 from selenium.webdriver.common.action_chains import ActionChains
 from environs import Env
 from log_filters import ErrorLogFilter, CriticalLogFilter, DebugWarningLogFilter
@@ -27,14 +29,19 @@ from text_appel import get_text
 from Find_nearst_MVD import get_mvd
 from AI_match import answer_ai
 from add_commentory import add_link
+import create_folder
+from urllib.parse import quote_plus
 
+current_date = date.today()
 #ПС
-root_folder = r"\\Pczaitenov\159\Ежедневная подача\Галимзянова\Выполненные\10.06.2025 ПС"
+# root_folder = fr"\\Pczaitenov\159\Ежедневная подача\Галимзянова\{current_date} ПС"
+root_folder = fr"\\Pczaitenov\159\Ежедневная подача\Галимзянова\11.06.2025 ПС"
+
 
 #ДК
 # root_folder = r"\\Pczaitenov\159\ДК. Ежедневная подача\Мезитова\03.06.2025 ДК"
 
-dst_root = r"\\Pczaitenov\159\Ежедневная подача\Галимзянова\Выполненные\07.06.2025 ПС"
+dst_root = fr"\\Pczaitenov\159\Ежедневная подача\Галимзянова\Выполненные\{current_date}\ПС"
 keywords = ["пс_заявление", "объяснение", "payment", "credit", "справка"] 
 
 phone_number = 89600476437
@@ -101,6 +108,7 @@ def looking_and_solve_capthca():
     captcha_input.send_keys(captcha_text)
 
 def check_info(driver):
+    logger.info('Кликаю по заявлению от гражданина')
     checkbox_label2 = WebDriverWait(driver, 150).until(
     EC.element_to_be_clickable((By.CLASS_NAME, "checkbox"))
     ).click()
@@ -127,13 +135,16 @@ try:
             except Exception as e:
                 logger.critical(f'Папка не найдена, проверь путь! {e}')
                 raise FileNotFoundError
+                break
 
             try:
                 fio, birthday, region_id, reg_address = get_code_region(bd['ps'], loan_id)
                 logger.info('Вытягиваю данные из бд')
+                logger.info(f'Данные по клиенту {fio}, {reg_address}')
             except Exception as e:
                 logger.critical(f'Подключение к бд не выполненоо, данные не получены {e}')
                 raise ConnectionError
+                break
             if any(x is None for x in [fio, birthday, region_id, reg_address]):
                 move_folder(folder_path, dst_root)
                 logger.error(f'Клиент {loan_id} не проходит по меткам или ОД')
@@ -179,14 +190,13 @@ try:
             #Базовый блок выбора с гос услугами, повторяется.
             try:
                 check_info(driver)
-                logger.info('Кликаю по заявлению от гражданина')
             except Exception as e:
                 logger.info(f'Блока нет идем дальше {e}')
 
 
             try:
                 check_info(driver)
-                logger.info('Кликаю по заявлению от гражданина')
+
             except Exception as e:
                 logging.info('повторное обращение не требуется')
 
@@ -202,7 +212,17 @@ try:
 
                 texts = [o.text for o in options]
                 ai = answer_ai(texts, template_mvd)
+
                 print(f"AI suggests: {ai}")
+                if ai == 'НЕТ':
+                    #Блок обработки ошибок аи если не найдено ближайшее мвд 
+                    logger.error(f'Выбор мвд не удался, не получается найти ближайшее мвд, адрес клиента {reg_address}')
+                    query = f'{reg_address} к какому району относится'
+                    encoded_query = quote_plus(query)
+                    driver.execute_script(f"window.open('https://www.google.com/search?q={encoded_query}');")
+                    driver.switch_to.window(driver.window_handles[-1])
+                    hand_mvd = input('Выбери мвд руками в браузере и нажми интер тут')
+
                 found = False
                 # Теперь ищем элемент с нужным текстом и кликаем
                 for _ in range(3):  # Несколько попыток на случай проблем
@@ -218,8 +238,9 @@ try:
                                     found = True
                                     print(f"Selected: {opt.text}")
                                     break
-                                except ElementClickInterceptedException:
+                                except Exception as e:
                                     print("Клик не удался (перекрыт), скроллим к элементу и пробуем снова...")
+                                    logger.info(f'Ошибка {e}')
                                     driver.execute_script("arguments[0].scrollIntoView();", opt)
                                     time.sleep(0.3)
                                     opt.click()
@@ -260,15 +281,16 @@ try:
             
             #Должность
             try:
+                logger.info('Ввожу название папки и должность.')
                 post_input = driver.find_element(By.NAME, "post")
                 post_input.send_keys("ООО ПКО ЭКВИТА КАПИТАЛ")
                 locality=get_Locality(root_folder)
                 # Для ФИО (fio)
                 fio_input = driver.find_element(By.NAME, "fio")
                 fio_input.send_keys(locality)
-                logger.info('Вводим должность')
-            except:
-                logger.error('Текст обращения не сформирован! Введи в ручную и нажми интер')
+            except Exception as e:
+                logger.error(f'Текст обращения не сформирован, записываю ошибку в лог {e}')
+                logger.info(f'Введи в ручную и нажми интер')
 
             #Обращение    
             try:
@@ -299,7 +321,6 @@ try:
                 input('Загружены?')
             for i in found:
             # Отправляем путь к файлу
-                print(i)
                 file_input.send_keys(i)
                 WebDriverWait(driver, 30).until(
                     lambda d: d.find_element(By.ID, "fileupload-list").value_of_css_property("opacity") == '1'
