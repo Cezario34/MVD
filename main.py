@@ -393,6 +393,7 @@ try:
                 check_final = input('Зарегистрируй комментарий и после нажми интер чтобы цикл пошел заново')
             except Exception as e:
                 logger.error(f'Ошибка! Не получилось подтвердить и записать! {e}')
+                logger.info(f'Номер договора {loan_id}')
                 input('Зарегистрируй комментарий и после нажми интер чтобы цикл пошел заново')
                 move_folder(folder_path, dst_root)
             end = time.time()
