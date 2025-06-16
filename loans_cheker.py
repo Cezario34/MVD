@@ -3,14 +3,28 @@ import shutil
 from typing import List, Tuple
 
 
+
+def extract_number_before_dash(name: str) -> int:
+    try:
+        return int(name.split("-")[0])
+    except (IndexError, ValueError):
+        return float('inf')  # если имя не по формату — в конец
+
+
 def find_first_subfolder(root_folder: str) -> str:
     """
-    Возвращает путь к первой подпапке внутри root_folder.
+    Возвращает путь к первой подпапке внутри root_folder,
+    отсортированной по числу перед первым тире.
     """
-    for entry in sorted(os.listdir(root_folder)):
-        full_path = os.path.join(root_folder, entry)
-        if os.path.isdir(full_path):
-            return full_path
+    subfolders = [
+        entry for entry in os.listdir(root_folder)
+        if os.path.isdir(os.path.join(root_folder, entry))
+    ]
+
+    sorted_folders = sorted(subfolders, key=extract_number_before_dash)
+
+    if sorted_folders:
+        return os.path.join(root_folder, sorted_folders[0])
     return None
 
 def find_files_by_keywords(folder_path: str, keywords: list) -> Tuple[list[str], str]:

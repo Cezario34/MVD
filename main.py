@@ -32,7 +32,7 @@ from add_commentory import add_link
 import create_folder
 from urllib.parse import quote_plus
 
-current_date = date.today()
+today = date.today()
 #ПС
 # root_folder = fr"\\Pczaitenov\159\Ежедневная подача\Галимзянова\{current_date} ПС"
 root_folder = fr"\\Pczaitenov\159\Ежедневная подача\Галимзянова\14.06.2025 ПС"
@@ -40,7 +40,7 @@ root_folder = fr"\\Pczaitenov\159\Ежедневная подача\Галимз
 
 #ДК
 # root_folder = r"\\Pczaitenov\159\ДК. Ежедневная подача\Мезитова\03.06.2025 ДК"
-
+current_date = today.strftime("%d.%m.%Y")
 dst_root = fr"\\Pczaitenov\159\Ежедневная подача\Галимзянова\Выполненные\{current_date}\ПС"
 keywords = ["пс_заявление", "объяснение", "payment", "credit", "справка"] 
 
