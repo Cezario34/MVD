@@ -6,6 +6,7 @@ import requests
 
 from datetime import date
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.chrome.options import Options
 from environs import Env
 from log_filters import ErrorLogFilter, CriticalLogFilter, DebugWarningLogFilter
 from selenium import webdriver
@@ -31,6 +32,7 @@ from AI_match import answer_ai
 from add_commentory import add_link
 import create_folder
 from urllib.parse import quote_plus
+import undetected_chromedriver as uc
 
 today = date.today()
 #ПС
@@ -42,6 +44,8 @@ root_folder = fr"\\Pczaitenov\159\Ежедневная подача\Галимз
 # root_folder = r"\\Pczaitenov\159\ДК. Ежедневная подача\Мезитова\03.06.2025 ДК"
 current_date = today.strftime("%d.%m.%Y")
 dst_root = fr"\\Pczaitenov\159\Ежедневная подача\Галимзянова\Выполненные\{current_date}\ПС"
+unfulfilled_root = fr"\\Pczaitenov\159\Ежедневная подача\Галимзянова\Невыполненные"
+
 keywords = [".docx", ".xlsx", ".pdf", ".docx.doc"]
 
 phone_number = 89600476437
@@ -165,9 +169,9 @@ def repeat_captcha_block(driver, max_attempts=3):
 
 
 try:
-    options = Options()
+    options = uc.ChromeOptions()    
     options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-    driver = webdriver.Chrome(service=ChromiumService(ChromeDriverManager().install()), options=options)
+    driver = uc.Chrome(service=ChromiumService(ChromeDriverManager().install()),options=options)
     wait = WebDriverWait(driver, 15)
     logger.info('Запускаем браузер')
     counter = 0
@@ -177,6 +181,7 @@ try:
             #Получение номера договора из папки + данные по клиенту
             try:
                 loan_id = get_loan_id(root_folder)
+                found, folder_path  = find_files_by_keywords(root_folder, keywords)
                 logger.info(f'Обрабатываю договор {loan_id}')
             except Exception as e:
                 logger.critical(f'Папка не найдена, проверь путь! {e}')
@@ -212,7 +217,16 @@ try:
             try:
                 logger.info(f'Пытаюсь подключится к странице {url}')
                 driver.get(url)
+                html = driver.page_source.lower()
+                if "/503.jpg" in driver.page_source:                    
+                    logger.warning(f"Страница {url} вернула 503 — пропускаем.")
+                    move_folder(folder_path, unfulfilled_root)
+                    time.sleep(5)
+                    continue
             except (WebDriverException, TimeoutException, InvalidArgumentException) as e:
+                if "503" in str(e):
+                    logger.error(f"Ошибка 503 при загрузке {url}: {e}")
+                    continue
                 logger.critical("Ошибка при загрузке страницы:", e)
                 raise TimeoutException
 
@@ -359,7 +373,6 @@ try:
             try:
             # Ищем где загружать файл.
                 file_input = driver.find_element(By.ID, "fileupload-input")
-
                 found, folder_path  = find_files_by_keywords(root_folder, keywords)
                 found.extend([static_file_1,static_file_2,static_file_3])
             except Exception as e:
