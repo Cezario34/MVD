@@ -213,7 +213,7 @@ try:
                 )
 
                 texts = [o.text for o in options]
-                ai = answer_ai(texts, template_mvd)
+                ai = answer_ai(texts, template_mvd, reg_address)
 
                 print(f"AI suggests: {ai}")
                 if ai == 'НЕТ':
@@ -357,8 +357,10 @@ try:
                     EC.presence_of_element_located((By.CLASS_NAME, "b-error_list-item"))
                 )
                     logger.error('Введи капчу руками')
+                    input('Если каптча введена нажми Enter')
                 except:
                     logger.info('Проверь, введена ли капча')
+                    input('Если капча введена нажми Enter, если нет, введи сначала ее самостоятельно, а после Enter')
             except TimeoutException:
                 print("Ошибки нет, идем дальше")
             
