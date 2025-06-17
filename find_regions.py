@@ -17,14 +17,54 @@ FROM dblink(
         addresses_label->'reg_address' as reg_address
     FROM loans
     JOIN clients ON loans.profile_id = clients.profile_id
-    WHERE loans.id = '{loan_id}'
+    WHERE loans.id = '{loan_id}
+    and coalesce(amount_principal_accrued,0) - coalesce(amount_principal_paid, 0) >=500
+  	and not exists (
+    select 1 from tags x
+    where (x.loan_id = loans.id or x.client_id = clients.id)
+    and x.tag_type_id in ('33','31','28','27','26')'
     $$
 ) AS t1 (
     fio varchar,
     birthday varchar,
     region_code varchar,
     reg_address varchar
-);
+)
+where
+    NOT (
+        reg_address ILIKE '%Аминьевский мост%' OR
+        reg_address ILIKE '%Аминьевское шоссе%' OR
+        reg_address ILIKE '%Большая Очаковская улица%' OR
+        reg_address ILIKE '%Веерная улица%' OR
+        reg_address ILIKE '%Верейская улица%' OR
+        reg_address ILIKE '%Генерала Дорохова%' OR
+        reg_address ILIKE '%Елены Колесовой%' OR
+        reg_address ILIKE '%Лобачевского%' OR
+        reg_address ILIKE '%Марии Поливановой%' OR
+        reg_address ILIKE '%Матвеевская улица%' OR
+        reg_address ILIKE '%Мичуринский проспект%' OR
+        reg_address ILIKE '%Наташи Ковшовой%' OR
+        reg_address ILIKE '%Нежинская улица%' OR
+        reg_address ILIKE '%Озёрная площадь%' OR
+        reg_address ILIKE '%Озёрная улица%' OR
+        reg_address ILIKE '%Очаковский%' OR
+        reg_address ILIKE '%Очаковское шоссе%' OR
+        reg_address ILIKE '%Пржевальского%' OR
+        reg_address ILIKE '%Проектируемый проезд N 1438%' OR
+        reg_address ILIKE '%Проектируемый проезд N 1980%' OR
+        reg_address ILIKE '%Проектируемый проезд N 5231%' OR
+        reg_address ILIKE '%Рябиновая улица%' OR
+        reg_address ILIKE '%Староволынская улица%' OR
+        reg_address ILIKE '%Стройкомбината%' OR
+        reg_address ILIKE '%Троекуровский проезд%' OR
+        reg_address ILIKE '%Брянск%' OR
+        reg_address ILIKE '%Курск%' OR
+        reg_address ILIKE '%Белгород%' OR
+		reg_address ILIKE '%Белгородcкая%' OR
+		reg_address ILIKE '%Брянская%' OR
+		reg_address ILIKE '%Курская обл%'
+    )
+limit 1;
 """
 
 

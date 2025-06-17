@@ -3,9 +3,9 @@ from environs import Env
 
 
 
-
+env_path=r"\\Pczaitenov\159\Служебная папка\.env"
 env = Env()
-env.read_env()  # <-- путь указываем здесь!
+env.read_env(env_path)  # <-- путь указываем здесь!
 
 
 
