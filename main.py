@@ -392,10 +392,11 @@ try:
                 logger.info('Пробую получить и записать ссылку')
                 p_code = driver.find_element(By.XPATH, "//p[contains(text(), 'Код проверки статуса обращения')]")
                 status_code = p_code.find_element(By.TAG_NAME, "b").text.strip()
-                print(f"[DEBUG] Код проверки: {status_code}")
-
+                logger.info(f'{status_code} код проверки')
+                link = f'https://{region_id}.xn--b1aew.xn--p1ai/request_main/check/?status={status_code}'
+                logger.info(f'link {link}')
                 logger.info('Пробую записать в файл')
-                add_link(loan_id, status_code)
+                add_link(loan_id, link)
                 logger.info('Записал в файл. Перемещаю папки')
                 move_folder(folder_path, dst_root)
                 check_final = input('Зарегистрируй комментарий и после нажми интер чтобы цикл пошел заново')
