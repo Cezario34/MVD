@@ -93,7 +93,7 @@ logger.addHandler(error_file)
 
 def screenshot_and_solve(driver, element, filename='captcha.png'):
     element.screenshot(filename)
-    print(f"Скриншот капчи сохранён: {filename}")
+    print(f"Скриншот капчи сохранён: {filename} \n Происходит обход капчи, просто ожидай дальнейших инструкций")
     return solve_captcha(filename)
 
 
@@ -128,7 +128,7 @@ def repeat_captcha_block(driver, max_attempts=3):
     После max_attempts просит вручную.
     """
     while True:
-        input("Проверь корретность данных. Нажми Enter для продолжения...")
+
         driver.find_element(By.CLASS_NAME, "u-form__sbt").click()
 
         try:
@@ -144,19 +144,19 @@ def repeat_captcha_block(driver, max_attempts=3):
                 error_block = WebDriverWait(driver, 2).until(
                     EC.presence_of_element_located((By.CLASS_NAME, "b-error_list-item"))
                 )
-                print("[ERROR] Капча неверна, запускаем автосолвер.")
+                print("[ERROR] Капча неверна, запускаем повторный обход.")
                 try:
                     looking_and_solve_capthca()
                 except Exception as e:
                     logger.error('Сервис не отвечает.')
-                    input('Сервис обхода капчи не отвечает. Введи капчу в поле вручную и нажми Enter в этом окне')
+                    logger.info('Сервис обхода капчи не отвечает.')
                     break
                 # После автосолва цикл продолжится, будет новая попытка
             except TimeoutException:
                 print("[ERROR] Ошибка по капче не обнаружена, возможно другая проблема.")
                 break  # Можно выйти или обработать иначе
 
-    input("Проверь ввод капчи, заполни ее в ручную, после вернись в это окно? Нажмите Enter для продолжения...")
+    input("Проверь ввод капчи, заполни ее в ручную, нажми кнопку ПОДТВЕРДИТЬ и затем вернись в это окно,  Нажав Enter для продолжения...")
     WebDriverWait(driver, 120).until(
         EC.element_to_be_clickable((By.ID, "confirm_but"))
     )
@@ -165,7 +165,9 @@ def repeat_captcha_block(driver, max_attempts=3):
 
 
 try:
-    driver = webdriver.Chrome(service=ChromiumService(ChromeDriverManager().install()))
+    options = Options()
+    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+    driver = webdriver.Chrome(service=ChromiumService(ChromeDriverManager().install()), options=options)
     wait = WebDriverWait(driver, 15)
     logger.info('Запускаем браузер')
     counter = 0
@@ -175,7 +177,7 @@ try:
             #Получение номера договора из папки + данные по клиенту
             try:
                 loan_id = get_loan_id(root_folder)
-                logger.info('Выбираю 1 папку и ее номер договора')
+                logger.info(f'Обрабатываю договор {loan_id}')
             except Exception as e:
                 logger.critical(f'Папка не найдена, проверь путь! {e}')
                 raise FileNotFoundError
@@ -199,7 +201,7 @@ try:
                 template_mvd = get_mvd(reg_address)
                 logger.info(f'Ищу ближайшее мвд - {template_mvd}')
             except Exception as e:
-                logger.error(f'Ближайшее мвд не найдено! Подтверди ввод и введи его самостоятельно!')
+                logger.error(f'Ближайшее мвд не найдено! Введи его самостоятельно! и нажми Enter в этом окне!')
                 input()
 
 
@@ -265,7 +267,7 @@ try:
                     encoded_query = quote_plus(query)
                     driver.execute_script(f"window.open('https://www.google.com/search?q={encoded_query}');")
                     driver.switch_to.window(driver.window_handles[-1])
-                    hand_mvd = input('Выбери мвд руками в браузере и нажми интер тут')
+                    hand_mvd = input('Выбери мвд руками в браузере и нажми Enter тут')
                     driver.switch_to.window(driver.window_handles[0])
                 found = False
                 # Теперь ищем элемент с нужным текстом и кликаем
@@ -333,15 +335,15 @@ try:
                 fio_input = driver.find_element(By.NAME, "fio")
                 fio_input.send_keys(locality)
             except Exception as e:
-                logger.error(f'Текст обращения не сформирован, записываю ошибку в лог {e}')
-                logger.info(f'Введи в ручную и нажми интер')
+                logger.error(f'Должность и фио не выбраны, записываю ошибку в лог {e}')
+                input(f'Введи в ручную и нажми Enter')
 
             #Обращение    
             try:
                 TEXT = get_text(locality=locality,fio=fio,birthday=birthday)
                 logger.info('Формирую текст обращения')
             except:
-                logger.error('Текст обращения не сформирован! Введи в ручную и нажми интер')
+                logger.error('Текст обращения не сформирован! Введи в ручную и нажми Enter')
                 input()
             TEXT_INPUT = wait.until(
                 EC.visibility_of_element_located((By.CLASS_NAME, "textarea"))
@@ -351,8 +353,8 @@ try:
             #Поиск капчи
             try:
                 looking_and_solve_capthca() 
-            except:
-                logger.error('Проблема с капчей. Введи руками или дождись следующего шага')
+            except Exception as e:
+                logger.error(f'Проблема с капчей.{e}')
 
             try:
             # Ищем где загружать файл.
@@ -378,10 +380,10 @@ try:
                     lambda d: len(d.find_elements(By.CLASS_NAME, "half_link")) == 7
                 )
             except:
-                finish_upload = input('Подтверди что все 7 файлов загружены')
+                finish_upload = input('Подтверди что все 7 файлов загружены и нажми Enter..')
 
             cleanup_temp_uploads()
-
+            input("Проверь корретность данных. Нажми Enter для продолжения...")
             repeat_captcha_block(driver)
             
 
@@ -390,6 +392,7 @@ try:
             ).click()
             #Получение кода из письма + подтверждение
             time.sleep(3)
+            logger.info('Отправлено письмо на почту, вытягиваю код. Просто жди.')
             code = get_code()
 
 
