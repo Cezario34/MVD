@@ -35,7 +35,7 @@ from urllib.parse import quote_plus
 today = date.today()
 #ПС
 # root_folder = fr"\\Pczaitenov\159\Ежедневная подача\Галимзянова\{current_date} ПС"
-root_folder = fr"\\Pczaitenov\159\Ежедневная подача\Галимзянова\14.06.2025 ПС"
+root_folder = fr"\\Pczaitenov\159\Ежедневная подача\Галимзянова\15.06.2025 пс"
 
 
 #ДК
@@ -120,6 +120,48 @@ def check_info(driver):
     btn_gos_uslugi = wait.until(
         EC.element_to_be_clickable((By.XPATH, "//a[.//img[@alt='Войти через Госуслуги']]"))
     ).click()
+
+
+def repeat_captcha_block(driver, max_attempts=3):
+    """
+    Пробует решить капчу, если не получилось — ищет ошибку, запускает автосолвер и кликает снова.
+    После max_attempts просит вручную.
+    """
+    while True:
+        input("Проверь корретность данных. Нажми Enter для продолжения...")
+        driver.find_element(By.CLASS_NAME, "u-form__sbt").click()
+
+        try:
+            # Ждём кнопку подтверждения (если она появилась — успех)
+            WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.ID, "confirm_but"))
+            )
+            print("[SUCCESS] Капча успешно решена, продолжаем.")
+            return True
+        except TimeoutException:
+            # Кнопки нет — ищем ошибку по капче
+            try:
+                error_block = WebDriverWait(driver, 2).until(
+                    EC.presence_of_element_located((By.CLASS_NAME, "b-error_list-item"))
+                )
+                print("[ERROR] Капча неверна, запускаем автосолвер.")
+                try:
+                    looking_and_solve_capthca()
+                except Exception as e:
+                    logger.error('Сервис не отвечает.')
+                    input('Сервис обхода капчи не отвечает. Введи капчу в поле вручную и нажми Enter в этом окне')
+                    break
+                # После автосолва цикл продолжится, будет новая попытка
+            except TimeoutException:
+                print("[ERROR] Ошибка по капче не обнаружена, возможно другая проблема.")
+                break  # Можно выйти или обработать иначе
+
+    input("Проверь ввод капчи, заполни ее в ручную, после вернись в это окно? Нажмите Enter для продолжения...")
+    WebDriverWait(driver, 120).until(
+        EC.element_to_be_clickable((By.ID, "confirm_but"))
+    )
+    print("[SUCCESS] Капча введена вручную, продолжаем.")
+    return True
 
 
 try:
@@ -338,32 +380,11 @@ try:
             except:
                 finish_upload = input('Подтверди что все 7 файлов загружены')
 
-            pauses=input('Проверь данные и подверди клавишей Enter')
             cleanup_temp_uploads()
-            complete_button = driver.find_element(By.CLASS_NAME, "u-form__sbt").click()
 
-
-            #блок проверки капчи
-            try:
-                WebDriverWait(driver, 2).until(
-                    EC.presence_of_element_located((By.CLASS_NAME, "b-error_list-item"))
-                )
-                print("Ошибка! Капча неверна")
-                looking_and_solve_capthca()
-                complete_button = driver.find_element(By.CLASS_NAME, "u-form__sbt").click()
-                time.sleep(3)
-                try:
-                    WebDriverWait(driver, 2).until(
-                    EC.presence_of_element_located((By.CLASS_NAME, "b-error_list-item"))
-                )
-                    logger.error('Введи капчу руками')
-                    input('Если каптча введена нажми Enter')
-                except:
-                    logger.info('Проверь, введена ли капча')
-                    input('Если капча введена нажми Enter, если нет, введи сначала ее самостоятельно, а после Enter')
-            except TimeoutException:
-                print("Ошибки нет, идем дальше")
+            repeat_captcha_block(driver)
             
+
             sending_letter = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.ID, "confirm_but"))
             ).click()
