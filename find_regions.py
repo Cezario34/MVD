@@ -17,12 +17,13 @@ FROM dblink(
         addresses_label->'reg_address' as reg_address
     FROM loans
     JOIN clients ON loans.profile_id = clients.profile_id
-    WHERE loans.id = '{loan_id}
-    and coalesce(amount_principal_accrued,0) - coalesce(amount_principal_paid, 0) >=500
-  	and not exists (
-    select 1 from tags x
-    where (x.loan_id = loans.id or x.client_id = clients.id)
-    and x.tag_type_id in ('33','31','28','27','26')'
+    WHERE loans.id = '{loan_id}'
+      AND coalesce(amount_principal_accrued,0) - coalesce(amount_principal_paid, 0) >= 500
+      AND NOT EXISTS (
+        SELECT 1 FROM tags x
+        WHERE (x.loan_id = loans.id OR x.client_id = clients.id)
+          AND x.tag_type_id IN ('33','31','28','27','26')
+      )
     $$
 ) AS t1 (
     fio varchar,
@@ -30,7 +31,7 @@ FROM dblink(
     region_code varchar,
     reg_address varchar
 )
-where
+WHERE
     NOT (
         reg_address ILIKE '%Аминьевский мост%' OR
         reg_address ILIKE '%Аминьевское шоссе%' OR
@@ -60,11 +61,12 @@ where
         reg_address ILIKE '%Брянск%' OR
         reg_address ILIKE '%Курск%' OR
         reg_address ILIKE '%Белгород%' OR
-		reg_address ILIKE '%Белгородcкая%' OR
-		reg_address ILIKE '%Брянская%' OR
-		reg_address ILIKE '%Курская обл%'
+        reg_address ILIKE '%Белгородcкая%' OR
+        reg_address ILIKE '%Брянская%' OR
+        reg_address ILIKE '%Курская обл%'
     )
-limit 1;
+LIMIT 1;
+
 """
 
 
