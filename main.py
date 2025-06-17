@@ -390,15 +390,12 @@ try:
             try:
                 logger.info(f'Номер договора {loan_id}')
                 logger.info('Пробую получить и записать ссылку')
-                link = WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.XPATH, "//a[contains(@href, 'request_main/check')]"))
-                )
-                # Извлекаем адрес
-                href = link.get_attribute("outerHTML")
-                logger.info('Ссылка получена')
-                print(href)    
+                p_code = driver.find_element(By.XPATH, "//p[contains(text(), 'Код проверки статуса обращения')]")
+                status_code = p_code.find_element(By.TAG_NAME, "b").text.strip()
+                print(f"[DEBUG] Код проверки: {status_code}")
+
                 logger.info('Пробую записать в файл')
-                add_link(loan_id,href)
+                add_link(loan_id, status_code)
                 logger.info('Записал в файл. Перемещаю папки')
                 move_folder(folder_path, dst_root)
                 check_final = input('Зарегистрируй комментарий и после нажми интер чтобы цикл пошел заново')
