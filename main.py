@@ -131,7 +131,7 @@ def repeat_captcha_block(driver, max_attempts=3):
     Пробует решить капчу, если не получилось — ищет ошибку, запускает автосолвер и кликает снова.
     После max_attempts просит вручную.
     """
-    while True:
+    for i in max_attempts+1:
 
         driver.find_element(By.CLASS_NAME, "u-form__sbt").click()
 
@@ -174,6 +174,8 @@ try:
     options.add_argument("--window-size=1200,900")
     options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
     driver = uc.Chrome(service=ChromiumService(ChromeDriverManager().install()),options=options)
+    driver.set_window_size(700, 900)
+    driver.execute_script("document.body.style.zoom='80%'")
     wait = WebDriverWait(driver, 15)
     logger.info('Запускаем браузер')
     counter = 0
@@ -451,7 +453,7 @@ try:
                 add_link(loan_id, link)
                 logger.info('Записал в файл. Перемещаю папки')
                 move_folder(folder_path, dst_root)
-                # check_final = input('Зарегистрируй комментарий и после нажми интер чтобы цикл пошел заново')
+                check_final = input('Зарегистрируй комментарий и после нажми интер чтобы цикл пошел заново')
             except Exception as e:
                 logger.error(f'Ошибка! Не получилось подтвердить и записать! {e}')
                 logger.info(f'Номер договора {loan_id}')
