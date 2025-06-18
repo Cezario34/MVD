@@ -97,7 +97,6 @@ logger.addHandler(error_file)
 
 def screenshot_and_solve(driver, element, filename='captcha.png'):
     driver.execute_script("arguments[0].scrollIntoView(true);", element)
-    time.sleep(0.5)
 
     WebDriverWait(driver, 10).until(
     EC.visibility_of(element)
