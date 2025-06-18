@@ -23,7 +23,7 @@ def get_data_with_retries(get_data_func, max_tries: int = 3, delay: int =2):
 def get_coordinates(reg_address: str) -> Tuple:
 
     apikey = "7166c6cd-e13e-4dfc-b4d8-9aa72e1e01f5"
-    address = reg_address # любой адрес целиком
+    address = reg_address 
 
     # Кодируем адрес
     address_encoded = quote_plus(address)

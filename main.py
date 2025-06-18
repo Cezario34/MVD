@@ -37,7 +37,7 @@ import undetected_chromedriver as uc
 today = date.today()
 #ПС
 # root_folder = fr"\\Pczaitenov\159\Ежедневная подача\Галимзянова\{current_date} ПС"
-root_folder = fr"\\Pczaitenov\159\Ежедневная подача\Галимзянова\15.06.2025 пс"
+root_folder = fr"\\Pczaitenov\159\Ежедневная подача\Галимзянова\17.06.2025 пс"
 
 
 #ДК
@@ -169,7 +169,9 @@ def repeat_captcha_block(driver, max_attempts=3):
 
 
 try:
+    
     options = uc.ChromeOptions()    
+    options.add_argument("--window-size=1200,900")
     options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
     driver = uc.Chrome(service=ChromiumService(ChromeDriverManager().install()),options=options)
     wait = WebDriverWait(driver, 15)
@@ -389,40 +391,53 @@ try:
                     EC.presence_of_element_located((By.CLASS_NAME, "half_link"))
                 )
             try:
-                WebDriverWait(driver, 30).until(
+                WebDriverWait(driver, 10).until(
                     lambda d: len(d.find_elements(By.CLASS_NAME, "half_link")) == 7
                 )
             except:
                 finish_upload = input('Подтверди что все 7 файлов загружены и нажми Enter..')
 
             cleanup_temp_uploads()
+
+            #Проверка всего блока перед отправкой документов + перепрохождение капчи
             input("Проверь корретность данных. Нажми Enter для продолжения...")
             repeat_captcha_block(driver)
             
 
+            #Отправить код на почту
             sending_letter = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.ID, "confirm_but"))
             ).click()
+
+
             #Получение кода из письма + подтверждение
             time.sleep(3)
             logger.info('Отправлено письмо на почту, вытягиваю код. Просто жди.')
             code = get_code()
-
-
             email_code_input = wait.until(
                 EC.visibility_of_element_located((By.CLASS_NAME, "confirm-mail"))
             )
             email_code_input.send_keys(code)
             logger.info('код введен')
 
+            #Подтверждение кода
             button_confirm_email = driver.find_element(By.ID, "confirm_mail").click()
 
+            #Финальная отправка
             checkbox = driver.find_element(By.ID, 'correct')
             driver.execute_script("arguments[0].click();", checkbox)
-            # button_confirm_loan = driver.find_element(By.ID, "form-submit").click()
+            try:
+                button = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.ID, "form-submit"))
+                )
+                driver.execute_script("arguments[0].click();", button)
+            except Exception as e:
+                logger.error(f"Не удалось кликнуть по кнопке 'Отправить': {e}")
 
             #Финальный блок с отправкой заявления
-            input('Нажми кнопку ОТПРАВИТЬ, а затем нажми Enter')
+            # input('Нажми кнопку ОТПРАВИТЬ, а затем нажми Enter')
+
+            #Получение кода, перемещение папок, запись ссылки в эксель файл.
             counter += 1
             try:
                 logger.info(f'Номер договора {loan_id}')
@@ -436,7 +451,7 @@ try:
                 add_link(loan_id, link)
                 logger.info('Записал в файл. Перемещаю папки')
                 move_folder(folder_path, dst_root)
-                check_final = input('Зарегистрируй комментарий и после нажми интер чтобы цикл пошел заново')
+                # check_final = input('Зарегистрируй комментарий и после нажми интер чтобы цикл пошел заново')
             except Exception as e:
                 logger.error(f'Ошибка! Не получилось подтвердить и записать! {e}')
                 logger.info(f'Номер договора {loan_id}')
