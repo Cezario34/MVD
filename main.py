@@ -374,9 +374,6 @@ try:
             )
             TEXT_INPUT.send_keys(TEXT)
 
-            #Поиск капчи
-
-
             try:
             # Ищем где загружать файл.
                 file_input = driver.find_element(By.ID, "fileupload-input")
@@ -411,7 +408,6 @@ try:
             #Проверка всего блока перед отправкой документов + перепрохождение капчи
             input("Проверь корретность данных. Нажми Enter для продолжения...")
             repeat_captcha_block(driver)
-            driver.find_element(By.CLASS_NAME, "u-form__sbt").click()
 
             #Отправить код на почту
             sending_letter = WebDriverWait(driver, 10).until(
@@ -434,7 +430,9 @@ try:
 
             #Финальная отправка
             checkbox = driver.find_element(By.ID, 'correct')
+            
             driver.execute_script("arguments[0].click();", checkbox)
+            input('Нажми кнопку ОТПРАВИТЬ, а затем нажми Enter')
             try:
                 button = WebDriverWait(driver, 10).until(
                     EC.element_to_be_clickable((By.ID, "form-submit"))
@@ -444,7 +442,7 @@ try:
                 logger.error(f"Не удалось кликнуть по кнопке 'Отправить': {e}")
 
             #Финальный блок с отправкой заявления
-            input('Нажми кнопку ОТПРАВИТЬ, а затем нажми Enter')
+            
 
             #Получение кода, перемещение папок, запись ссылки в эксель файл.
             counter += 1
