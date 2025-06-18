@@ -126,7 +126,7 @@ def check_info(driver):
     ).click()
 
 
-def repeat_captcha_block(driver, max_attempts=3):
+def repeat_captcha_block(driver, max_attempts=2):
     """
     Пробует решить капчу, если не получилось — ищет ошибку, запускает автосолвер и кликает снова.
     После max_attempts просит вручную.
@@ -403,7 +403,7 @@ try:
 
             #Проверка всего блока перед отправкой документов + перепрохождение капчи
             input("Проверь корретность данных. Нажми Enter для продолжения...")
-            # repeat_captcha_block(driver)
+            repeat_captcha_block(driver)
             driver.find_element(By.CLASS_NAME, "u-form__sbt").click()
 
             #Отправить код на почту
@@ -437,7 +437,7 @@ try:
                 logger.error(f"Не удалось кликнуть по кнопке 'Отправить': {e}")
 
             #Финальный блок с отправкой заявления
-            # input('Нажми кнопку ОТПРАВИТЬ, а затем нажми Enter')
+            input('Нажми кнопку ОТПРАВИТЬ, а затем нажми Enter')
 
             #Получение кода, перемещение папок, запись ссылки в эксель файл.
             counter += 1
