@@ -115,7 +115,7 @@ def looking_and_solve_capthca():
 
 def check_info(driver):
     logger.info('Кликаю по заявлению от гражданина')
-    checkbox_label2 = WebDriverWait(driver, 150).until(
+    checkbox_label2 = WebDriverWait(driver, 100).until(
     EC.element_to_be_clickable((By.CLASS_NAME, "checkbox"))
     ).click()
     button =  WebDriverWait(driver, 60).until(
@@ -131,7 +131,7 @@ def repeat_captcha_block(driver, max_attempts=3):
     Пробует решить капчу, если не получилось — ищет ошибку, запускает автосолвер и кликает снова.
     После max_attempts просит вручную.
     """
-    for i in max_attempts+1:
+    for i in range(max_attempts+1):
 
         driver.find_element(By.CLASS_NAME, "u-form__sbt").click()
 
@@ -322,7 +322,7 @@ try:
             except Exception as e:
                 logger.error(f'Выбор мвд не удался, проблема {e}')
                 hand_mvd = input('Выбери мвд руками в браузере и нажми интер тут')
-            
+            logger.info(f'Адрес регистрации клиента - {reg_address}')
             
             phone_input = driver.find_element(By.ID, "phone_check")
             phone_input.clear()  # если нужно очистить перед вводом
@@ -403,8 +403,8 @@ try:
 
             #Проверка всего блока перед отправкой документов + перепрохождение капчи
             input("Проверь корретность данных. Нажми Enter для продолжения...")
-            repeat_captcha_block(driver)
-            
+            # repeat_captcha_block(driver)
+            driver.find_element(By.CLASS_NAME, "u-form__sbt").click()
 
             #Отправить код на почту
             sending_letter = WebDriverWait(driver, 10).until(
