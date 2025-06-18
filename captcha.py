@@ -3,8 +3,8 @@ from environs import Env
 
 env_path=r"\\Pczaitenov\159\Служебная папка\.env"
 env = Env()
-env.read_env(env_path)
-API = env('API_KEY')
+env.read_env(env_path,override=True)
+API = env('API_CAPTCHA')
 
 
 def solve_captcha(path, max_attempts=5):
