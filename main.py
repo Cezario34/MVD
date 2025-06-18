@@ -96,6 +96,12 @@ logger.addHandler(error_file)
 
 
 def screenshot_and_solve(driver, element, filename='captcha.png'):
+    driver.execute_script("arguments[0].scrollIntoView(true);", element)
+    time.sleep(0.5)
+
+    WebDriverWait(driver, 10).until(
+    EC.visibility_of(element)
+)
     element.screenshot(filename)
     print(f"Скриншот капчи сохранён: {filename} \n Происходит обход капчи, просто ожидай дальнейших инструкций")
     return solve_captcha(filename)
@@ -369,10 +375,7 @@ try:
             TEXT_INPUT.send_keys(TEXT)
 
             #Поиск капчи
-            try:
-                looking_and_solve_capthca() 
-            except Exception as e:
-                logger.error(f'Проблема с капчей.{e}')
+
 
             try:
             # Ищем где загружать файл.
@@ -400,7 +403,11 @@ try:
                 finish_upload = input('Подтверди что все 7 файлов загружены и нажми Enter..')
 
             cleanup_temp_uploads()
-
+            try:
+                looking_and_solve_capthca() 
+            except Exception as e:
+                logger.error(f'Проблема с капчей.{e}')
+                input('Введи капчу в ручную и нажми enter')
             #Проверка всего блока перед отправкой документов + перепрохождение капчи
             input("Проверь корретность данных. Нажми Enter для продолжения...")
             repeat_captcha_block(driver)
