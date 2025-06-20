@@ -193,8 +193,8 @@ try:
         try:
             #Получение номера договора из папки + данные по клиенту
             try:
-                loan_id = 'e905b006-a427-4da1-a9c6-d579c77ef308'
-                # found, folder_path  = find_files_by_keywords(root_folder, keywords)
+                loan_id = get_loan_id(root_folder)
+                found, folder_path  = find_files_by_keywords(root_folder, keywords)
                 logger.info(f'Обрабатываю договор {loan_id}')
             except Exception as e:
                 logger.critical(f'Папка не найдена, проверь путь! {e}')
@@ -279,6 +279,7 @@ try:
 
             #Выбор ближайшего мвд
             try:
+                logger.info('Ищу ближайшее МВД')
                 select_elem = driver.find_element(By.CSS_SELECTOR, ".select2-selection")
                 select_elem.click()
 
@@ -288,6 +289,7 @@ try:
                 )
 
                 texts = [o.text for o in options]
+                logger.info('Запрашиваю у ИИ информацию по МВД, ожидай.')
                 ai = answer_ai(texts, template_mvd, reg_address)
 
                 print(f"AI suggests: {ai}")

@@ -122,6 +122,3 @@ def get_mvd(reg_address: str) -> str:
                 return clean_name
     
     return "Подходящее МВД не найдено"
-
-
-print(get_mvd("Нижегородская обл, г Балахна, ул ЦКК, д 1, кв 18"))

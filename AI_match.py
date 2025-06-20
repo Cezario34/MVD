@@ -27,18 +27,22 @@ def image_analityc(text):
         "https": "http://FgtSa8:YupXza@168.80.202.107:8000"
         }
         client = OpenAI(api_key=env('API_KEY'))  
+        models = ["gpt-4.1-mini", "gpt-4.1"]
+        for model in models:
+            try:
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": text}]
+                )
+                return response.choices[0].message.content
+            except Exception as e:
+                print(f"Ошибка на модели {model}: {e}")
+                continue  # пробуем следующую модель
 
-        response = client.chat.completions.create(
-            model="gpt-4.1-mini",
-            messages=[
-                {"role": "user", "content": text}
-            ]
-        )
 
         os.environ.pop('HTTP_PROXY', None)
         os.environ.pop('HTTPS_PROXY', None)
 
-        return response.choices[0].message.content
     except Exception as e:
         print('Ошибка:', e)
         return None
@@ -51,7 +55,7 @@ def answer_ai(lists: list = None, find: str = None, reg_addres: str = None, prom
                             Ответ возвращай в виде текста, только 1 вариант. Если не видишь совпадений - 
                             Возвращай слово НЕТ. Особенно это касается городских МВД. 
                             
-                            Сначала смотри, есть ли совпадение по району у адреса и районного мвд из списка, города тоже должны совпадать. Т.е если город Ярославль, а район Ростовский, ты не выбираешь МВД Города Ростова, а выбираешь ЯРОСЛАВЛЬ! Точность города ВАЖНА!
+                            Сначала смотри, есть ли совпадение по району у адреса и районного мвд из списка, Обязательное требование - города тоже должны совпадать. Т.е если город Ярославль, а район Ростовский, ты не выбираешь МВД Города Ростова, а выбираешь МВД г.ЯРОСЛАВЛЬ! Точность города ВАЖНА!
                             Если нет то смотри выбирай городское. Если город Москва или Санкт-Петербург, особенно важно сопоставить ближайшее мвд и из списка  
                             Если нет совпадение по району и ближайшего МВД. Выбирай городское МВД. Если абсолютно никаких совпадений не найдено верни - НЕТ"""
 
