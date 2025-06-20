@@ -1,5 +1,6 @@
 import requests
 import time
+import re
 
 from typing import Tuple
 from urllib.parse import quote_plus
@@ -103,12 +104,24 @@ def find_nearst_MVD(coordinates: Tuple[float, float]):
         print(f"Ошибка: {e}")
 
 
-def get_mvd(reg_address) -> str:
+def get_mvd(reg_address: str) -> str:
     coordinates = get_data_with_retries(lambda: get_coordinates(reg_address))
-    mvd_list = get_data_with_retries(lambda: find_nearst_MVD(coordinates))    
-    final_mvd =''
+    if not coordinates:
+        return "Координаты не найдены"
+
+    mvd_list = get_data_with_retries(lambda: find_nearst_MVD(coordinates))
+    if not mvd_list:
+        return "МВД не найдено"
+
+    # Строгая проверка: ищем совпадение ключевых слов как целых слов
     for i in mvd_list:
-        if any(k.lower() in i['name'].lower() for k in keyword):
-            final_mvd = i['name']
-            break 
-    return final_mvd 
+        name = i.get('name', '').lower()
+        for keyword_part in keyword:
+            if re.search(rf'\b{re.escape(keyword_part.lower())}\b', name):
+                clean_name = re.split(r'\s{2,}', i['name'])[0].strip()
+                return clean_name
+    
+    return "Подходящее МВД не найдено"
+
+
+print(get_mvd("Нижегородская обл, г Балахна, ул ЦКК, д 1, кв 18"))

@@ -3,41 +3,45 @@ import time
 import sys
 import requests
 
-
-from datetime import date
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.chrome.options import Options
-from environs import Env
-from log_filters import ErrorLogFilter, CriticalLogFilter, DebugWarningLogFilter
-from selenium import webdriver
-from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.core.os_manager import ChromeType
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.service import Service as ChromiumService
-from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException
-from captcha import solve_captcha
-from tempfile import NamedTemporaryFile
-from loans_cheker import find_files_by_keywords, move_folder, get_loan_id, get_Locality,cleanup_temp_uploads
-from urllib.parse import urljoin
-from mail_pars import get_code
-from config_data import person
-from selenium.webdriver.common.keys import Keys
-from find_regions import get_code_region, bd
-from selenium.common.exceptions import WebDriverException, TimeoutException, InvalidArgumentException, StaleElementReferenceException, ElementClickInterceptedException
-from text_appel import get_text
-from Find_nearst_MVD import get_mvd
-from AI_match import answer_ai
-from add_commentory import add_link
-import create_folder
-from urllib.parse import quote_plus
-import undetected_chromedriver as uc
+try:
+    from datetime import date
+    from selenium.webdriver.common.action_chains import ActionChains
+    from selenium.webdriver.chrome.options import Options
+    from environs import Env
+    from log_filters import ErrorLogFilter, CriticalLogFilter, DebugWarningLogFilter
+    from selenium import webdriver
+    from webdriver_manager.chrome import ChromeDriverManager
+    from webdriver_manager.core.os_manager import ChromeType
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.webdriver.chrome.service import Service as ChromiumService
+    from selenium.webdriver.common.by import By
+    from selenium.common.exceptions import TimeoutException
+    from captcha import solve_captcha
+    from tempfile import NamedTemporaryFile
+    from loans_cheker import find_files_by_keywords, move_folder, get_loan_id, get_Locality,cleanup_temp_uploads
+    from urllib.parse import urljoin
+    from mail_pars import get_code
+    from config_data import person
+    from selenium.webdriver.common.keys import Keys
+    from find_regions import get_code_region, bd
+    from selenium.common.exceptions import WebDriverException, TimeoutException, InvalidArgumentException, StaleElementReferenceException, ElementClickInterceptedException
+    from text_appel import get_text
+    from Find_nearst_MVD import get_mvd
+    from AI_match import answer_ai
+    from add_commentory import add_link
+    import create_folder
+    from urllib.parse import quote_plus
+    import undetected_chromedriver as uc
+    import os
+except Exception as e:
+    import traceback
+    traceback.print_exc()
 
 today = date.today()
 #ПС
 # root_folder = fr"\\Pczaitenov\159\Ежедневная подача\Галимзянова\{current_date} ПС"
-root_folder = fr"\\Pczaitenov\159\Ежедневная подача\Галимзянова\17.06.2025 пс"
+root_folder = fr"\\Pczaitenov\159\Ежедневная подача\Галимзянова2\22.05.25 пс"
 
 
 #ДК
@@ -97,7 +101,6 @@ logger.addHandler(error_file)
 
 def screenshot_and_solve(driver, element, filename='captcha.png'):
     driver.execute_script("arguments[0].scrollIntoView(true);", element)
-
     WebDriverWait(driver, 10).until(
     EC.visibility_of(element)
 )
@@ -137,7 +140,7 @@ def repeat_captcha_block(driver, max_attempts=2):
     После max_attempts просит вручную.
     """
     for i in range(max_attempts+1):
-
+        input('')
         driver.find_element(By.CLASS_NAME, "u-form__sbt").click()
 
         try:
@@ -174,7 +177,7 @@ def repeat_captcha_block(driver, max_attempts=2):
 
 
 try:
-    
+    # os.environ["NO_PROXY"] = "localhost,127.0.0.1"
     options = uc.ChromeOptions()    
     options.add_argument("--window-size=1200,900")
     options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
@@ -183,14 +186,15 @@ try:
     driver.execute_script("document.body.style.zoom='80%'")
     wait = WebDriverWait(driver, 15)
     logger.info('Запускаем браузер')
+    # os.environ.pop("NO_PROXY", None)
     counter = 0
     while True:
         start = time.time()
         try:
             #Получение номера договора из папки + данные по клиенту
             try:
-                loan_id = get_loan_id(root_folder)
-                found, folder_path  = find_files_by_keywords(root_folder, keywords)
+                loan_id = 'e905b006-a427-4da1-a9c6-d579c77ef308'
+                # found, folder_path  = find_files_by_keywords(root_folder, keywords)
                 logger.info(f'Обрабатываю договор {loan_id}')
             except Exception as e:
                 logger.critical(f'Папка не найдена, проверь путь! {e}')
@@ -206,10 +210,14 @@ try:
                 raise ConnectionError
                 break
             if any(x is None for x in [fio, birthday, region_id, reg_address]):
-                move_folder(folder_path, dst_root)
-                logger.error(f'Клиент {loan_id} не проходит по меткам или ОД')
-                input('Проверь метки по клиенту и подтверди интером')
-                continue
+                if any (x is None for x in [fio, birthday, reg_address]):
+                    move_folder(folder_path, unfulfilled_root)
+                    logger.error(f'Клиент {loan_id} не проходит по меткам или ОД')
+                    input('Проверь метки по клиенту и подтверди интером')
+                    continue
+                elif region_id is None:
+                    region_id = answer_ai(promt = f"""Какой регион {reg_address}? Верни только номер региона.Возвращать что либо другое кроме номера запрещено!
+                                         Данные пойдут дальше""")
             #Ищем ближайшее мвд
             try:
                 template_mvd = get_mvd(reg_address)
