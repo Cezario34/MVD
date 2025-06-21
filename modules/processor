@@ -1,0 +1,16 @@
+
+
+
+
+class LoanProcessor(
+                    self,
+                    root_folder: str,
+                    dst_root: str,
+                    unfulfilled_root: str,
+                    keywords: list[str],
+                    driver_kwargs: dict,
+                    report_excel: "modules.report_service.ReportService",
+                    captcha_service: "modules.captcha_service.CaptchaService",
+                    ai_answer: "modules.ai_service.AIService"
+                    
+)
