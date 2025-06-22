@@ -16,8 +16,7 @@ class MvdService:
         keywords: List[str],
         cookies: Optional[Dict[str, str]] = None,
         headers: Optional[Dict[str, str]] = None,
-        logger: Optional[logging.Logger] = None)
-    ):
+        logger: Optional[logging.Logger] = None):
 
         self.yandex_api_key = yandex_api_key
         self.keywords = [k.lower() for k in keywords]
@@ -73,7 +72,7 @@ class MvdService:
                 return None
             pos = members[0]["GeoObject"]["Point"]["pos"]
             lon, lat = map(float, pos.split())
-            return, lon, lat
+            return lon, lat
 
         return self._with_retries(_fetch)
 

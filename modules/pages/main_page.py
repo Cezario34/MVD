@@ -15,11 +15,11 @@ class MainPage():
         logger
     ):
 
-    self.driver = driver
-    self.wait = WebDriverWait(driver, 10)
-    self.logger = logger
-    self._list_locator = (By.CSS_SELECTOR, "ul.select2-results__options li")
-    self.cnt_file = 7
+        self.driver = driver
+        self.wait = WebDriverWait(driver, 10)
+        self.logger = logger
+        self._list_locator = (By.CSS_SELECTOR, "ul.select2-results__options li")
+        self.cnt_file = 7
 
     def click_list_mvd(self):
         try:

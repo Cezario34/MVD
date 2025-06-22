@@ -1,9 +1,6 @@
 import imaplib
 import email
-import os
-import sys  
 import re
-from config_data import email_auth
 
 
 class MailCode():
@@ -14,17 +11,26 @@ class MailCode():
                 server,
                 port,
                 sender,
-                )
+                ):
+        
+        self.login=login
+        self.password = password
+        self.server=server
+        self.port = port
+        self.sender = sendr
+
 
     def get_email(subject: str) -> str | None:
+
+        
         try:
             # Подключение к серверу
-            mail = imaplib.IMAP4_SSL(email_auth.imap_server, email_auth.imap_port)
-            mail.login(email_auth.email_user, email_auth.email_pass)
+            mail = imaplib.IMAP4_SSL(self.server, self.port)
+            mail.login(self.login, self.password)
             mail.select('inbox')
 
             # Поиск писем только от нужного отправителя
-            status, messages = mail.search(None, f'(FROM "{email_auth.sender_email}")')
+            status, messages = mail.search(None, f'(FROM "{self.sender}")')
             mail_ids = messages[0].split()
             if not mail_ids:
                 print('Нет писем от этого отправителя.')

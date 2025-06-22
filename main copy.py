@@ -90,7 +90,7 @@ if __name__ == '__main__':
         temp_dir   = r"C:\Temp\SeleniumUploads",
         extensions = [".docx", ".xlsx", ".pdf", ".docx.doc"],
         logger     = logging.getLogger("files")
-    ))
+    )
 
     mail_code = (cfg.email.email_user, cfg.email.email_pass,
                  cfg.email.imap_server, cfg.email.imap_port, cfg.email.sender_email)
