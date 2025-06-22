@@ -1,16 +1,210 @@
+import time
+
+
+from modules.pages import WelcomePage, FinalPage, MainPage
+import undetected_chromedriver as uc
+from selenium.common.exceptions import WebDriverException, TimeoutException, InvalidArgumentException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from text_appel import get_text
 
 
 
+class LoanProcessor:
 
-class LoanProcessor(
-                    self,
-                    root_folder: str,
-                    dst_root: str,
-                    unfulfilled_root: str,
-                    keywords: list[str],
-                    driver_kwargs: dict,
-                    report_excel: "modules.report_service.ReportService",
-                    captcha_service: "modules.captcha_service.CaptchaService",
-                    ai_answer: "modules.ai_service.AIService"
-                    
-)
+    def __init__(self, root_folder: str, dst_root: str,
+                unfulfilled_root: str, keywords: list[str],
+                driver_kwargs: dict,
+                report_excel: "modules.report_service.ReportService",
+                captcha_service: "modules.captcha_service.CaptchaService",
+                ai_answer: "modules.ai_service.AIService",
+                mvd: "modules.mvd_service.MvdService",
+                db_service: "modules.db_service.LoanDataService",
+                mail: "modules.mail_parser.MailCode",
+                file_service: "modules.files_service.FileService",):
+        
+        self.root_folder = root_folder
+        self.unfulfilled_root = unfulfilled_root
+        self.dst_root = dst_root
+        self.driver_kwargs = driver_kwargs
+        self.report_excel = report_excel
+        self.captcha_service = captcha_service
+        self.ai_answer = ai_answer
+        self.mvd = mvd
+        self.db_service = db_service
+        self.file_service = file_service
+        self.logger = logging.getLogger(__name__)
+        self.counter = 0
+        self.phone_number =89600476437
+        self.email ='operation3@ekvitakapital.ru'
+        self.mail = mail
+        self.bd = 'ПС'
+
+
+    def init_browser(self):
+        options = uc.ChromeOptions()    
+        self.driver = uc.Chrome(**self.driver_kwargs)
+        self.wait = WebDriverWait(self.driver, 15)
+
+        self.welcome = WelcomePage(self.driver, self.logger)
+        self.main    = MainPage   (self.driver, self.wait, self.logger)
+        self.final   = FinalPage  (self.driver, self.wait, self.logger)
+
+
+    def run(self):
+        self.init_browser()
+        while True:
+            start = time.time()
+
+            #Вытягиваем лоан ид из папки + пути к файлам.
+            try:
+                loan_id = self.file_service.get_loan_id(self.root_folder)
+                found, folder_path = self.file_service.find_files_by_keywords(self.root_folder, self.file_service.extensions)
+                self.logger.info(f'Обрабатываю договор {loan_id}')
+            except Exception as e:
+                self.logger.critical(f'Папка не найдена, проверь путь! {e}')
+                raise FileNotFoundError
+
+            
+            try:
+                fio, birthday, region_id, reg_address = self.db_service.get_code_region(
+                                                            self.db_service.remote_db_map.bd['ps'], loan_id)
+                self.logger.info('Вытягиваю данные из бд')
+                self.logger.info(f'Данные по клиенту {fio}, {reg_address}')
+            except Exception as e:
+                self.logger.critical(f'Подключение к бд не выполненоо, данные не получены {e}')
+                raise ConnectionError
+
+            
+            #Замена региона, пропуск пустых данных в бд
+            if any (x is None for x in [fio, birthday, reg_address]):
+                self.file_service.move_folder(folder_path, self.unfulfilled_root)
+                self.logger.error(f'Клиент {loan_id} не проходит по меткам или ОД')
+                input('Проверь метки по клиенту и подтверди интером')
+                continue
+            elif region_id is None:
+                region_id = self.ai_answer.answer(promt = f"""Какой регион {reg_address}? Верни только номер региона.Возвращать что либо другое кроме номера запрещено!
+                                        Данные пойдут дальше""")
+
+            #Логика приветственной страницы                           
+            try:
+                self.welcome.open(region_id)
+            except TimeoutException:
+                self.logger.critical("Ошибка при загрузке страницы")
+                self.file_service.move_folder(folder_path, self.unfulfilled_root)
+                continue
+            except WebDriverException:
+                self.logger.error("Ошибка при загрузке страницы 503 ошибка")
+                self.file_service.move_folder(folder_path, self.unfulfilled_root)
+                continue
+
+            try:
+                if self.counter == 0:
+                    self.welcome.gos_auth_page()
+                    self.welcome.click_gos_service()
+                    self.welcome.gos_auth_page()
+                else:
+                    self.welcome.gos_auth_page()
+            except Exception as e:
+                self.logger.error(f'Авторизация на гос услугах не удалась {e}')
+
+
+            try:
+                self.main.click_list_mvd()
+            except ElementNotVisibleException:
+                self.logger.error('Список мвд не найден')
+
+            try:
+                list_mvd = self.main.get_list_mvd()
+            except Exception as e:
+                self.logger.error(f'Список выбора МВД не получен! Приготовься выбрать в ручную! {e}')
+            
+            try:
+                find  = self.mvd.select_mvd(reg_address)
+            except:
+                self.logger.error(f'Ошибка при получении ближайшего МВД! {e}')
+
+            try:
+                self.main.select_mvd(self.ai_answer.answer(options = list_mvd,
+                                                           reg_address = reg_address,
+                                                           find = find))
+            except Exception as e:
+                self.logger.error(f'Ошибка при выборе ближайшего мвд! Выбери мвд самостоятельно! {e}')
+
+            self.main.phone_input(self.phone_number)
+
+            self.main.input_email(self.email)
+
+            self.main.input_post()
+
+            locality = self.file_service.get_locality(self.root_folder)
+
+            self.main.input_fio(locality,self.bd)
+
+            self.text_input(get_text(locality, fio, birthday, bd))
+
+            try:
+                self.main.input_files(found)
+            except Exception as e:
+                self.logger.error(f'Внимание! Какой то из файлов не был загружен!')
+
+            try:
+                self.main.check_len_files()
+            except FileNotFoundError:
+                self.logger.error(f'Проблема при загрузке файлов! Проверь их количество!')
+
+            try:
+                capthca_path = self.main.captcha_src()
+            except:
+                self.logger.error('Ошибка при прокрутке и скриншота капчи!')
+
+            self.main.input_captcha(self.captcha_service.solve(capthca_path))
+
+            input('Проверь правильность введенных данных, после нажми Enter')
+
+            self.main.accept_the_application()
+
+            flag = False
+            for i in range(3):
+                try:
+                    self.final.email_complete_btn()
+                    self.logger.info('Капча успешно решена, двигаемся дальше')
+                    flag = True
+                    break
+                except:
+                    try:
+                        self.main.find_error_capthca
+                        capthca_path = self.main.captcha_src()
+                        self.main.input_captcha(self.captcha_service.solve(capthca_path))
+                    except:
+                        self.logger(f'Капча не решена, возможно другая проблема {e}')
+            
+            if flag == False:
+                input(f'Капча не решена! Реши руками!')
+                self.logger.error(f'Ошибка при решении капчи!')
+                self.final.email_complete_btn()
+
+            self.final.email_complete_btn()
+            try:
+                email_code = self.mail.get_code()
+            except Exception as e:
+                self.logger.error(f'Код с почты не получен! Введите вручную! {e}')
+
+            self.final.input_email_code(email_code)
+
+            self.final.complete_email()
+
+            self.final.final_checkbox_click()
+
+            self.final.send_an_application()
+
+            try:
+                link = self.final.get_link()
+                input('Зарегистрируй комментарий и нажми Enter для продолжения')
+            except:
+                self.logger.error('Неудалось получить ссылку! Скопируй самостоятельно и вставь комментарий')
+            
+            self.report_excel.add_link(loan_id, link)
+
+            end_time = time.time()
+            self.logger.info(f'Время обработки {end_time - start_time}')

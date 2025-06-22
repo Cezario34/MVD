@@ -52,6 +52,10 @@ class CaptchaConfig:
 
 
 @dataclass
+class YandexMaps:
+    api_key: str
+
+@dataclass
 class AIConfig:
     api_key: str
 
@@ -123,6 +127,10 @@ def load_config(env_path: Optional[str] = None) -> AppConfig:
         api_key = env("API_KEY"),
     )
 
+    yandexMaps = yandexMaps(
+        api_key = env("API_YANDEX")
+    )
+
     # 3) Объединяем
     return AppConfig(
         database  = db_cfg,
@@ -131,5 +139,6 @@ def load_config(env_path: Optional[str] = None) -> AppConfig:
         main_db   = main_db_cfg,
         person    = person,
         captcha   = captcha_cfg,
-        ai        = ai_cfg
+        ai        = ai_cfg,
+        yandexMaps = yandexMaps
     )

@@ -21,7 +21,12 @@ class MvdService:
 
         self.yandex_api_key = yandex_api_key
         self.keywords = [k.lower() for k in keywords]
-        self.cookies = cookies or {}
+        self.cookies        = {
+                "close_apps_link": "yes",
+                "csrf-token-name": "csrftokensec",
+                "session": "rhql075pubdkhc40ek5a80tia3",
+            }
+            
         self.headers = headers or {
             "User-Agent":(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "

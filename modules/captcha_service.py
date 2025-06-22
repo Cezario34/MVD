@@ -1,9 +1,9 @@
 import os
 import time
 import logging
-
+import sys, os
+sys.path.insert(0, os.path.abspath(os.path.join(__file__, "..", "..")))
 from twocaptcha import TwoCaptcha
-
 
 class CaptchaService:
     def __init__(self, api_key: str, max_attempts: int = 5):
@@ -38,4 +38,5 @@ class CaptchaService:
         finally:
             for k in ("HTTP_PROXY", "HTTPS_PROXY"):
                 os.environ.pop(k, None)
+
 
