@@ -47,3 +47,16 @@ class FinalPage():
             return status_code
         except:
             raise ElementNotVisibleException
+
+    def wait_for_error(self) -> str:
+        """
+        Ждём появления <span class="error">,
+        возвращаем его текст или пустую строку, если не появилось.
+        """
+        try:
+            err_elem = self.wait.until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, "span.error"))
+            )
+            return err_elem.text.strip()
+        except TimeoutException:
+            raise ""

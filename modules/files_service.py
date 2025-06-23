@@ -61,6 +61,7 @@ class FileService:
             self.logger.error(f"Не удалось скопировать {src}: {e}")
             return None
 
+
     def find_files_by_keywords(
         self,
         root_folder: str

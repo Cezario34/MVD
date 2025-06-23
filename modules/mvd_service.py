@@ -89,8 +89,8 @@ class MvdService:
             
             resp = requests.get(url, headers = self.headers, cookies = self.cookies, timeout = 10)
             resp.raise_for_status()
-            html = resp.json(),get("view", "")
-            soup = BeautifulSoup(html,"html.parser")
+            html = resp.json().get("view", "")
+            soup = BeautifulSoup(html, "html.parser")
 
             items = []
             for sl in soup.select(".sl-item"):
@@ -145,7 +145,7 @@ class MvdService:
         if not coords:
             return ""
 
-        mvd_list = self.find_nearest_mvd(coords)
+        mvd_list = self.find_nearst_mvd(coords)
         if not mvd_list:
             return ""
 

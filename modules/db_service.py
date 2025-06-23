@@ -1,6 +1,7 @@
 # modules/db_service.py
 
 import logging
+import pandas as pd
 from typing import Dict, Tuple, Optional
 
 from sqlalchemy import create_engine, text
@@ -24,7 +25,7 @@ class LoanDataService:
         """
         self.logger        = logger or logging.getLogger(__name__)
         self.remote_db_map = remote_db_map
-        self.engine: Engine = create_engine(engine_conn_string)
+        self.engine: Engine = engine_conn_string
 
     def _build_query(self, dblink_conn: str, loan_id: str) -> str:
         return f"""
@@ -90,37 +91,20 @@ WHERE
 LIMIT 1;
 """
 
-    def get_code_region(
-        self,
-        loan_type: str,
-        loan_id: str
-    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
-        """
-        :param loan_type: ключ для remote_db_map, например 'ps' или 'dk'
-        :param loan_id:    UUID-строка договора
-        :return: (fio, birthday, region_code, reg_address) или (None, None, None, None)
-        """
+    def get_code_region(self, loan_type: str, loan_id: str, params=None):
         if loan_type not in self.remote_db_map:
             self.logger.error("Unknown loan_type %r", loan_type)
             return None, None, None, None
 
         dblink_conn = self.remote_db_map[loan_type]
-        query       = self._build_query(dblink_conn, loan_id)
+        query = self._build_query(dblink_conn, loan_id)
 
-        with self.engine.connect() as conn:
-            try:
-                row: Optional[Row] = conn.execute(text(query)).fetchone()
-            except Exception as e:
-                self.logger.error("Ошибка выполнения SQL: %s", e, exc_info=True)
-                return None, None, None, None
-
-        if row:
-            return (
-                row["fio"],
-                row["birthday"],
-                row["region_code"],
-                row["reg_address"],
-            )
+        df = pd.read_sql_query(text(query), con=self.engine, params=params)
+        if not df.empty:
+            fio = df.iloc[0]['fio']
+            birthday = df.iloc[0]['birthday']
+            region_code = df.iloc[0]['region_code']
+            reg_address = df.iloc[0]['reg_address']
+            return fio, birthday, region_code, reg_address
         else:
-            self.logger.info("По договору %s ничего не найдено", loan_id)
             return None, None, None, None

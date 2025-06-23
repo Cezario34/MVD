@@ -17,10 +17,10 @@ class MailCode():
         self.password = password
         self.server=server
         self.port = port
-        self.sender = sendr
+        self.sender = sender
 
 
-    def get_email(subject: str) -> str | None:
+    def get_email(self, subject: str) -> str | None:
 
         
         try:
@@ -84,8 +84,8 @@ class MailCode():
             print(f"Ошибка: {e}")
             return None
 
-    def get_code() -> str | None:
-        email_body = get_email("Проверка почты")
+    def get_code(self) -> str | None:
+        email_body = self.get_email("Проверка почты")
         if not email_body:
             print("Письмо не найдено")
             return None

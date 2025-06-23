@@ -26,9 +26,9 @@ class EmailConfig:
 
 
 @dataclass
-class GosUslugiConfig:
-    login: str
-    password: str
+# class GosUslugiConfig:
+#     login: str
+#     password: str
 
 
 @dataclass
@@ -64,11 +64,11 @@ class AIConfig:
 class AppConfig:
     database      : DatabaseConfig
     email         : EmailConfig
-    gosuslugi     : GosUslugiConfig
     main_db       : MainDBConfig
     person        : PersonData
     captcha       : CaptchaConfig
     ai            : AIConfig
+    maps          : YandexMaps
 
 
 def load_config(env_path: Optional[str] = None) -> AppConfig:
@@ -101,11 +101,6 @@ def load_config(env_path: Optional[str] = None) -> AppConfig:
         sender_email= env("SENDER_EMAIL"),
     )
 
-    gos_cfg = GosUslugiConfig(
-        login    = env("GOS_LOGIN"),
-        password = env("GOS_PASSWORD"),
-    )
-
     main_db_cfg = MainDBConfig(
         ps = env("PS_CONN"),
         dk = env("DK_CONN"),
@@ -127,7 +122,7 @@ def load_config(env_path: Optional[str] = None) -> AppConfig:
         api_key = env("API_KEY"),
     )
 
-    yandexMaps = yandexMaps(
+    maps_cfg = YandexMaps(
         api_key = env("API_YANDEX")
     )
 
@@ -135,10 +130,9 @@ def load_config(env_path: Optional[str] = None) -> AppConfig:
     return AppConfig(
         database  = db_cfg,
         email     = email_cfg,
-        gosuslugi = gos_cfg,
         main_db   = main_db_cfg,
         person    = person,
         captcha   = captcha_cfg,
         ai        = ai_cfg,
-        yandexMaps = yandexMaps
+        maps      = maps_cfg
     )

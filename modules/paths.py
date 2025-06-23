@@ -14,8 +14,8 @@ def build_paths(base_share: str, loan_type: str, date_str: str = None) -> str:
 
     # root_folder = os.path.join(base_share, date_str, loan_type)
     dst_root = os.path.join(base_share, "Выполненные", date_str, loan_type)
-
-    return dst_root
+    unfulfilled_root = os.path.join(base_share, "Невыполненные", date_str, loan_type)
+    return dst_root, unfulfilled_root
 
 
 def ensure_dirs_exist(*paths: str) -> None:

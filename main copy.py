@@ -1,12 +1,14 @@
 import logging
 import sys
+from log_filters import ErrorLogFilter, CriticalLogFilter, DebugWarningLogFilter
+
+
 
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
 
 from modules.paths import build_paths, ensure_dirs_exist
-from log_filters import ErrorLogFilter, CriticalLogFilter, DebugWarningLogFilter
 from modules.processor import LoanProcessor
 from modules.captcha_service import CaptchaService
 import modules.config_data as config_data
@@ -17,43 +19,36 @@ from modules.mvd_service import MvdService
 from modules.db_service import LoanDataService
 from modules.config_data import load_config
 from modules.mail_parser import MailCode
+import undetected_chromedriver as uc
+from interface import App
 
-def configure_logging():
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)
+root = logging.getLogger()           # <- именно root
+root.setLevel(logging.DEBUG)
 
-    formatter_1 = logging.Formatter(
-        fmt='[%(asctime)s] #%(levelname)-8s %(filename)s:'
-            '%(lineno)d - %(name)s:%(funcName)s - %(message)s'
-    )
+console = logging.StreamHandler(sys.stdout)
+console.setLevel(logging.INFO)
+console.addFilter(DebugWarningLogFilter())
+console.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
+root.addHandler(console)
 
-    formatter_2 = logging.Formatter(
-        fmt='[%(asctime)s] #%(levelname)-8s - %(message)s'
-    )
+err_fh = logging.FileHandler("error.log", mode="w", encoding="utf-8")
+err_fh.setLevel(logging.ERROR)
+err_fh.addFilter(ErrorLogFilter())
+err_fh.setFormatter(logging.Formatter(
+    "[%(asctime)s] %(levelname)-8s %(name)s:%(lineno)d - %(message)s"
+))
+root.addHandler(err_fh)
 
-    error_file = logging.FileHandler('error.log', 'w', encoding='utf-8')
-    error_file.setLevel(logging.DEBUG)
-    error_file.addFilter(ErrorLogFilter())
-    error_file.setFormatter(formatter_1)
 
-    stdout = logging.StreamHandler(sys.stdout)
-    stdout.addFilter(DebugWarningLogFilter())
-    stdout.setFormatter(formatter_2)
-
-    stderr = logging.StreamHandler()
-    critical_file = logging.FileHandler('critical.log', mode='w', encoding='utf-8')
-    critical_file.setFormatter(fmt=formatter_1)
-    critical_file.addFilter(CriticalLogFilter())
-
-    logger.addHandler(stderr)
-    logger.addHandler(critical_file)
-    logger.addHandler(stdout)
-    logger.addHandler(error_file)
+crit_fh = logging.FileHandler("critical.log", mode="w", encoding="utf-8")
+crit_fh.setLevel(logging.CRITICAL)
+crit_fh.addFilter(CriticalLogFilter())
+crit_fh.setFormatter(err_fh.formatter)
+root.addHandler(crit_fh)
 
 
 def get_driver_kwargs() -> dict:
-    configure_logging()
-    opts = Options()
+    opts = uc.ChromeOptions()
     opts.add_argument("--window-size=1200,800")
     opts.add_argument(
         "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -78,8 +73,7 @@ if __name__ == '__main__':
         },
         logger = logging.getLogger("db")
     )
-
-    root_folder = r'\\Pczaitenov\159\Ежедневная подача\Галимзянова\14.06.2025 дк'
+    root_folder = r'\\Pczaitenov\159\Ежедневная подача\Галимзянова\21.06.2025 пс'
     dst_root, unfulfilled_root = build_paths(
         base_share=r"\\Pczaitenov\159\Ежедневная подача\Галимзянова",
         loan_type="ПС")
@@ -92,19 +86,25 @@ if __name__ == '__main__':
         logger     = logging.getLogger("files")
     )
 
-    mail_code = (cfg.email.email_user, cfg.email.email_pass,
-                 cfg.email.imap_server, cfg.email.imap_port, cfg.email.sender_email)
 
+    mail_service = MailCode(
+        login   = cfg.email.email_user,
+        password = cfg.email.email_pass,
+        server   = cfg.email.imap_server,
+        port     = cfg.email.imap_port,
+        sender   = cfg.email.sender_email,
+    )
     report_excel = ReportService(logging.getLogger("report"))
 
     captcha = CaptchaService(api_key=cfg.captcha.api_key)
-    mvd = MvdService(cfg.yandexMaps.api_key,
+    mvd = MvdService(cfg.maps.api_key,
             keywords=["отдел полиции", "оп", "отделение полиции", "омвд"]
     )
     driver_kwargs = get_driver_kwargs()
 
     ai_svc = AIService(api_key=cfg.ai.api_key)
 
+    bd = 'ПС'        
     proc = LoanProcessor(root_folder=root_folder, dst_root=dst_root, unfulfilled_root=unfulfilled_root,
                          keywords= file_svc.extensions, 
                          captcha_service=captcha, 
@@ -113,6 +113,11 @@ if __name__ == '__main__':
                          report_excel = report_excel,
                          mvd = mvd,
                          db_service = db_svc,
-                         mail = mail_code,
-                         ai_answer=ai_svc)
-    proc.run()
+                         mail = mail_service,
+                         ai_answer=ai_svc,
+                         bd = bd)
+    
+    app = App(processor=proc)
+    proc._on_pause = app.show_pause_prompt  
+    app.mainloop()
+    

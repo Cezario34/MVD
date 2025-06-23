@@ -8,7 +8,7 @@ class ErrorLogFilter(logging.Filter):
 
 class DebugWarningLogFilter(logging.Filter):
     def filter(self, record):
-        return record.levelname in ('DEBUG', 'WARNING')
+        return record.levelname in ('DEBUG', 'INFO')
 
 
 class CriticalLogFilter(logging.Filter):

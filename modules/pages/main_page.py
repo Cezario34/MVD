@@ -59,7 +59,7 @@ class MainPage():
                             break
                         except Exception as e:
                             print("Клик не удался (перекрыт), скроллим к элементу и пробуем снова...")
-                            logger.info(f'Ошибка {e}')
+                            self.logger.info(f'Ошибка {e}')
                             self.driver.execute_script("arguments[0].scrollIntoView();", opt)
                             time.sleep(0.3)
                             opt.click()
@@ -104,6 +104,10 @@ class MainPage():
         text_input.send_keys(text)
     
     def input_files(self, found):
+        static_file_1 = r"\\Pczaitenov\159\Ежедневная подача\Галимзянова\Агентский договор Триумвират - ЭквИта-Капитал.pdf"
+        static_file_2 = r"\\Pczaitenov\159\Ежедневная подача\Галимзянова\ДОВЕРЕННОСТЬ НА СОТРУДНИКА ГАЛИМЗЯНОВА.pdf"
+        static_file_3 = r"\\Pczaitenov\159\Ежедневная подача\Галимзянова\Доверенность от Триумвират на Эквиту.pdf"
+        found.extend([static_file_1,static_file_2,static_file_3])
         try:
             file_input = self.driver.find_element(By.ID, "fileupload-input")
             for i in found:

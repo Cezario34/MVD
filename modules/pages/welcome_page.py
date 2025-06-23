@@ -1,4 +1,4 @@
-from selenium.common.exceptions import WebDriverException, TimeoutException, InvalidArgumentException
+from selenium.common.exceptions import WebDriverException, TimeoutException, InvalidArgumentException,ElementNotVisibleException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
@@ -48,6 +48,6 @@ class WelcomePage:
         btn_gos_uslugi.click()
         # qr_click
 
-    def gos_auth_page():
+    def gos_auth_page(self):
         self.click_statement_checkbox()
         self.click_statement_button()

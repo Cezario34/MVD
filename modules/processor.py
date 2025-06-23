@@ -1,13 +1,19 @@
 import time
+import logging
+import threading
 
 
 from modules.pages import WelcomePage, FinalPage, MainPage
 import undetected_chromedriver as uc
-from selenium.common.exceptions import WebDriverException, TimeoutException, InvalidArgumentException
+from selenium.common.exceptions import (
+    WebDriverException, TimeoutException,
+    InvalidArgumentException, ElementNotVisibleException,
+    NoSuchElementException
+)
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from text_appel import get_text
-
+from modules.text_appel import get_text
+from typing import Callable
 
 
 class LoanProcessor:
@@ -21,7 +27,8 @@ class LoanProcessor:
                 mvd: "modules.mvd_service.MvdService",
                 db_service: "modules.db_service.LoanDataService",
                 mail: "modules.mail_parser.MailCode",
-                file_service: "modules.files_service.FileService",):
+                file_service: "modules.files_service.FileService",
+                bd: str):
         
         self.root_folder = root_folder
         self.unfulfilled_root = unfulfilled_root
@@ -31,6 +38,7 @@ class LoanProcessor:
         self.captcha_service = captcha_service
         self.ai_answer = ai_answer
         self.mvd = mvd
+        self.keywords = keywords
         self.db_service = db_service
         self.file_service = file_service
         self.logger = logging.getLogger(__name__)
@@ -38,12 +46,14 @@ class LoanProcessor:
         self.phone_number =89600476437
         self.email ='operation3@ekvitakapital.ru'
         self.mail = mail
-        self.bd = 'ПС'
-
+        self.bd = bd
+        self._wait_for_continue = threading.Event()
+        self._should_stop = False
+        self._on_pause: Callable[[str], None] = lambda prompt: None  
 
     def init_browser(self):
-        options = uc.ChromeOptions()    
         self.driver = uc.Chrome(**self.driver_kwargs)
+        self.driver.set_window_size(800, 1200)
         self.wait = WebDriverWait(self.driver, 15)
 
         self.welcome = WelcomePage(self.driver, self.logger)
@@ -51,15 +61,25 @@ class LoanProcessor:
         self.final   = FinalPage  (self.driver, self.wait, self.logger)
 
 
+    def _pause(self, prompt: str) -> None:
+        """Останавливает процессор до нажатия «Продолжить» в GUI."""
+        if self._should_stop:
+            raise RuntimeError("Процесс остановлен пользователем")
+        self._wait_for_continue.clear()
+        self._on_pause(prompt)
+        self._wait_for_continue.wait()
+
+
+
     def run(self):
         self.init_browser()
-        while True:
+        while not self._should_stop:
             start = time.time()
 
             #Вытягиваем лоан ид из папки + пути к файлам.
             try:
                 loan_id = self.file_service.get_loan_id(self.root_folder)
-                found, folder_path = self.file_service.find_files_by_keywords(self.root_folder, self.file_service.extensions)
+                found, folder_path = self.file_service.find_files_by_keywords(self.root_folder)
                 self.logger.info(f'Обрабатываю договор {loan_id}')
             except Exception as e:
                 self.logger.critical(f'Папка не найдена, проверь путь! {e}')
@@ -67,8 +87,9 @@ class LoanProcessor:
 
             
             try:
-                fio, birthday, region_id, reg_address = self.db_service.get_code_region(
-                                                            self.db_service.remote_db_map.bd['ps'], loan_id)
+                ps_conn = self.db_service.remote_db_map['ps']
+                fio, birthday, region_id, reg_address = \
+                    self.db_service.get_code_region("dk", loan_id)
                 self.logger.info('Вытягиваю данные из бд')
                 self.logger.info(f'Данные по клиенту {fio}, {reg_address}')
             except Exception as e:
@@ -78,9 +99,9 @@ class LoanProcessor:
             
             #Замена региона, пропуск пустых данных в бд
             if any (x is None for x in [fio, birthday, reg_address]):
-                self.file_service.move_folder(folder_path, self.unfulfilled_root)
                 self.logger.error(f'Клиент {loan_id} не проходит по меткам или ОД')
-                input('Проверь метки по клиенту и подтверди интером')
+                self._pause("Проверь метки, ОД и нажмите «Продолжить». Договор будет помещен в невыполненные")
+                self.file_service.move_folder(folder_path, self.unfulfilled_root)
                 continue
             elif region_id is None:
                 region_id = self.ai_answer.answer(promt = f"""Какой регион {reg_address}? Верни только номер региона.Возвращать что либо другое кроме номера запрещено!
@@ -121,11 +142,11 @@ class LoanProcessor:
             
             try:
                 find  = self.mvd.select_mvd(reg_address)
-            except:
-                self.logger.error(f'Ошибка при получении ближайшего МВД! {e}')
+            except Exception as exp:
+                self.logger.error(f'Ошибка при получении ближайшего МВД! {exp}')
 
             try:
-                self.main.select_mvd(self.ai_answer.answer(options = list_mvd,
+                self.main.select_mvd(self.ai_answer.select_mvd(options = list_mvd,
                                                            reg_address = reg_address,
                                                            find = find))
             except Exception as e:
@@ -141,7 +162,7 @@ class LoanProcessor:
 
             self.main.input_fio(locality,self.bd)
 
-            self.text_input(get_text(locality, fio, birthday, bd))
+            self.main.text_input(get_text(locality, fio, birthday, self.bd))
 
             try:
                 self.main.input_files(found)
@@ -152,6 +173,7 @@ class LoanProcessor:
                 self.main.check_len_files()
             except FileNotFoundError:
                 self.logger.error(f'Проблема при загрузке файлов! Проверь их количество!')
+                self._pause("Проверь все ли файлы загружены и нажми «Продолжить». Если файлов не хватает - загрузи вручную")
 
             try:
                 capthca_path = self.main.captcha_src()
@@ -160,51 +182,81 @@ class LoanProcessor:
 
             self.main.input_captcha(self.captcha_service.solve(capthca_path))
 
-            input('Проверь правильность введенных данных, после нажми Enter')
+            self._pause("Проверь правильность введенных данных и нажми «Продолжить».")
 
             self.main.accept_the_application()
 
-            flag = False
-            for i in range(3):
+            MAX_RETRIES = 3
+            for attempt in range(1, MAX_RETRIES + 1):
                 try:
+                    # пытаемся нажать подтверждение кода из письма
                     self.final.email_complete_btn()
-                    self.logger.info('Капча успешно решена, двигаемся дальше')
-                    flag = True
+                except TimeoutException as e:
+                    self.logger.warning("Капча не принята (попытка %d): %s", attempt, e)
+                    # снимаем новый скрин
+                    captcha_path = self.main.captcha_src()
+                    captcha_text = self.captcha_service.solve(captcha_path)
+                    if not captcha_text:
+                        self.logger.error("Сервис не вернул текст капчи")
+                        break
+
+                    # вводим новый код
+                    self.main.input_captcha(captcha_text)
+                    # ждем, может, секунду, чтобы капча «подхватилась»
+                    time.sleep(1)
+                    # снова кликаем «Отправить»
+                    self.main.accept_the_application()
+                    # и loop повторится: в начале попробуем email_complete_btn()
+                else:
+                    self.logger.info("Капча успешно решена на попытке %d", attempt)
                     break
-                except:
-                    try:
-                        self.main.find_error_capthca
-                        capthca_path = self.main.captcha_src()
-                        self.main.input_captcha(self.captcha_service.solve(capthca_path))
-                    except:
-                        self.logger(f'Капча не решена, возможно другая проблема {e}')
-            
-            if flag == False:
-                input(f'Капча не решена! Реши руками!')
-                self.logger.error(f'Ошибка при решении капчи!')
+            else:
+                # после трёх неудач — просим юзера
+                self._pause("Капчу решить не удалось, ПРОСТО впиши ее в поле и нажми «Продолжить».")
+                self.main.accept_the_application()
                 self.final.email_complete_btn()
 
-            self.final.email_complete_btn()
             try:
+                time.sleep(2)
                 email_code = self.mail.get_code()
+                if email_code is None:
+                    raise ValueError("Письмо с кодом не найдено")
             except Exception as e:
-                self.logger.error(f'Код с почты не получен! Введите вручную! {e}')
+                self.logger.error(f"Код с почты не получен: {e}")
+                email_code = self._pause("Проблема с почтой. Возможно нужно будет ввести код вручную. Нажми «Продолжить».")
 
+
+            print(email_code)
+            self.logger.info(f'Код проверки {email_code}')
             self.final.input_email_code(email_code)
 
             self.final.complete_email()
 
             self.final.final_checkbox_click()
 
+            err_text = self.final.wait_for_error()
+            if err_text:
+                self.logger.error(f"Код неверен: «{err_text}»")
+                self.logger.info(f"Введенный код неверен!")
+                # тут можете повторить ввод или прервать, как вам нужно
+            else:
+                self.logger.info("Код принят, продолжаем дальше")
+
+            self._pause("ПРОВЕРЬ ВСЕ ДАННЫЕ, ЗАЯВЛЕНИЕ УЙДЕТ ПОСЛЕ КНОПКИ «Продолжить».")
+
+            
             self.final.send_an_application()
 
             try:
                 link = self.final.get_link()
-                input('Зарегистрируй комментарий и нажми Enter для продолжения')
+                self._pause("Проставь комментарий и нажми «Продолжить» для следующего договора.")
             except:
                 self.logger.error('Неудалось получить ссылку! Скопируй самостоятельно и вставь комментарий')
-            
-            self.report_excel.add_link(loan_id, link)
-
+                self._pause("Проставь комментарий и нажми «Продолжить» для следующего договора.")
+            try:
+                self.logger.info('Записываю в ексельку')
+                self.report_excel.add_link(loan_id, link)
+            except Exception as e_excel:
+                self.logger.error(f'Я не смог записать в эксель {e_excel}')
             end_time = time.time()
             self.logger.info(f'Время обработки {end_time - start_time}')
