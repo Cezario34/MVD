@@ -1,7 +1,7 @@
 import pandas as pd
 import logging
 from pathlib import Path
-
+from datetime import date
 
 
 class ReportService:
@@ -12,7 +12,9 @@ class ReportService:
     r"\\Pczaitenov\159\Ежедневная подача\Галимзянова\Выполненные\Отчетность МВД.xlsx"
     )       
 
-    def add_link(self, loan_id: str, link: str) -> None:
+    def add_link(self, fio: str,  loan_id: str, link: str) -> None:
+
+        current_date = date.today()
 
         try:
             df= pd.read_excel(self.file_path)
@@ -20,7 +22,7 @@ class ReportService:
             self.logger.error("Не удалось прочитать отчёт %s: %s", self.file_path, e)
             raise
         
-        new_row = pd.DataFrame({'loan_id': [loan_id], 'link': [link]})
+        new_row = pd.DataFrame({'current_date':[current_date], 'fio':[fio], 'loan_id': [loan_id], 'link': [link]})
         df = pd.concat([df, new_row], ignore_index=True, axis=0)
 
         try:

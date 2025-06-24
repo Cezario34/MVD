@@ -27,12 +27,18 @@ class WelcomePage:
 
     def click_statement_checkbox(self):
         """Клик по чекбоксу гражданина"""
-        self.logger.info('Кликаю по заявлению от гражданина')
-        checkbox_label2 = self.long_wait.until(
+        elem = self.long_wait.until(
+            EC.presence_of_element_located((By.CLASS_NAME, "checkbox"))
+        )
+        # Прокрутить
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", elem)
+        # Подождать, что стал кликабельным
+        elem = self.long_wait.until(
             EC.element_to_be_clickable((By.CLASS_NAME, "checkbox"))
-            )
-        checkbox_label2.click()
-
+        )
+        self.driver.execute_script("arguments[0].click();", elem)   
+        
+             
     def click_statement_button(self):
         """Клик по кнопке подать заявление"""
         button = self.short_wait.until(

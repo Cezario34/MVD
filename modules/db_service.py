@@ -103,6 +103,8 @@ LIMIT 1;
         if not df.empty:
             fio = df.iloc[0]['fio']
             birthday = df.iloc[0]['birthday']
+            if df.iloc[0]['region_code'] == 91:
+                df.iloc[0]['region_code'] == 82
             region_code = df.iloc[0]['region_code']
             reg_address = df.iloc[0]['reg_address']
             return fio, birthday, region_code, reg_address

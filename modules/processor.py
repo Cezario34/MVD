@@ -48,8 +48,9 @@ class LoanProcessor:
         self.mail = mail
         self.bd = bd
         self._wait_for_continue = threading.Event()
-        self._should_stop = False
+        self._stop_event = threading.Event()
         self._on_pause: Callable[[str], None] = lambda prompt: None  
+        self._skip_event =  threading.Event()
 
     def init_browser(self):
         self.driver = uc.Chrome(**self.driver_kwargs)
@@ -63,24 +64,42 @@ class LoanProcessor:
 
     def _pause(self, prompt: str) -> None:
         """Останавливает процессор до нажатия «Продолжить» в GUI."""
-        if self._should_stop:
+        if getattr(self, "_stop_event", None) and self._stop_event.is_set():
             raise RuntimeError("Процесс остановлен пользователем")
         self._wait_for_continue.clear()
         self._on_pause(prompt)
         self._wait_for_continue.wait()
 
+    def _handle_skip(self, folder_path):
+        """
+        Если пользователь нажал «Пропустить» — переместить папку и сбросить флаг.
+        Возвращает True, если мы действительно пропустили, тогда в цикле нужно continue.
+        """
+        if self._skip_event.is_set():
+            self.file_service.move_folder(folder_path, self.unfulfilled_root)
+            self.logger.warning("Договор пропущен пользователем")
+            self._skip_event.clear()
+            return True
+        return False
 
 
-    def run(self):
+    def run(self,
+            pause_event: threading.Event,
+            stop_event: threading.Event,
+            skip_event: threading.Event):
+    
+        self._wait_for_continue = pause_event
+        self._stop_event      = stop_event 
+        self._skip_event = skip_event
         self.init_browser()
-        while not self._should_stop:
+        while not self._stop_event.is_set():
             start = time.time()
 
             #Вытягиваем лоан ид из папки + пути к файлам.
             try:
                 loan_id = self.file_service.get_loan_id(self.root_folder)
                 found, folder_path = self.file_service.find_files_by_keywords(self.root_folder)
-                self.logger.info(f'Обрабатываю договор {loan_id}')
+                self.logger.warning(f'Обрабатываю договор {loan_id}')
             except Exception as e:
                 self.logger.critical(f'Папка не найдена, проверь путь! {e}')
                 raise FileNotFoundError
@@ -91,7 +110,7 @@ class LoanProcessor:
                 fio, birthday, region_id, reg_address = \
                     self.db_service.get_code_region("dk", loan_id)
                 self.logger.info('Вытягиваю данные из бд')
-                self.logger.info(f'Данные по клиенту {fio}, {reg_address}')
+                self.logger.warning(f'Данные по клиенту {fio}, {reg_address}')
             except Exception as e:
                 self.logger.critical(f'Подключение к бд не выполненоо, данные не получены {e}')
                 raise ConnectionError
@@ -118,7 +137,10 @@ class LoanProcessor:
                 self.logger.error("Ошибка при загрузке страницы 503 ошибка")
                 self.file_service.move_folder(folder_path, self.unfulfilled_root)
                 continue
-
+            time.sleep(10)
+            if self._handle_skip(folder_path):
+                continue
+            
             try:
                 if self.counter == 0:
                     self.welcome.gos_auth_page()
@@ -127,8 +149,10 @@ class LoanProcessor:
                 else:
                     self.welcome.gos_auth_page()
             except Exception as e:
-                self.logger.error(f'Авторизация на гос услугах не удалась {e}')
+                self.logger.error("Авторизация на госуслугах не удалась", exc_info=True)
+                    
 
+            self.logger.warning('Обрабатываю информацию ближайшего мвд, ожидай.')
 
             try:
                 self.main.click_list_mvd()
@@ -137,21 +161,39 @@ class LoanProcessor:
 
             try:
                 list_mvd = self.main.get_list_mvd()
-            except Exception as e:
-                self.logger.error(f'Список выбора МВД не получен! Приготовься выбрать в ручную! {e}')
-            
+            except TimeoutException:
+                # self.logger.warning("Список МВД не загрузился за отведённое время, перейдите к ручному выбору")
+                list_mvd = [] 
+
             try:
                 find  = self.mvd.select_mvd(reg_address)
             except Exception as exp:
                 self.logger.error(f'Ошибка при получении ближайшего МВД! {exp}')
-
+                find = ""
             try:
-                self.main.select_mvd(self.ai_answer.select_mvd(options = list_mvd,
-                                                           reg_address = reg_address,
-                                                           find = find))
-            except Exception as e:
-                self.logger.error(f'Ошибка при выборе ближайшего мвд! Выбери мвд самостоятельно! {e}')
+                answer = self.ai_answer.select_mvd(
+                    options=list_mvd,
+                    reg_address=reg_address,
+                    find=find
+                )
+            except Exception as ai_err:
+                self.logger.error("AI-сервис упал: %s", ai_err)
+                answer = None
 
+            # 2) Если пусто — ручной выбор
+            if not answer:
+                self.logger.warning("AI не выбрал ни одного МВД — переходим на ручной выбор")
+
+            else:
+                clicked = self.main.select_mvd(answer)
+                if clicked:
+                    self.logger.warning("Выбран МВД: %s", answer)
+                else:
+                    self.logger.error(
+                        "Не удалось автоматически кликнуть по «%s» — перейдите к ручному выбору", 
+                        answer
+                    )
+                    
             self.main.phone_input(self.phone_number)
 
             self.main.input_email(self.email)
@@ -167,13 +209,16 @@ class LoanProcessor:
             try:
                 self.main.input_files(found)
             except Exception as e:
-                self.logger.error(f'Внимание! Какой то из файлов не был загружен!')
+                self.logger.warning(f'Внимание! Какой то из файлов не был загружен!')
 
             try:
                 self.main.check_len_files()
             except FileNotFoundError:
-                self.logger.error(f'Проблема при загрузке файлов! Проверь их количество!')
+                self.logger.warning(f'Проблема при загрузке файлов! Проверь их количество!')
                 self._pause("Проверь все ли файлы загружены и нажми «Продолжить». Если файлов не хватает - загрузи вручную")
+
+
+            self.logger.warning('Обхожу капчу, ожидай.')
 
             try:
                 capthca_path = self.main.captcha_src()
@@ -225,8 +270,6 @@ class LoanProcessor:
                 self.logger.error(f"Код с почты не получен: {e}")
                 email_code = self._pause("Проблема с почтой. Возможно нужно будет ввести код вручную. Нажми «Продолжить».")
 
-
-            print(email_code)
             self.logger.info(f'Код проверки {email_code}')
             self.final.input_email_code(email_code)
 
@@ -251,12 +294,14 @@ class LoanProcessor:
                 link = self.final.get_link()
                 self._pause("Проставь комментарий и нажми «Продолжить» для следующего договора.")
             except:
-                self.logger.error('Неудалось получить ссылку! Скопируй самостоятельно и вставь комментарий')
+                self.logger.warning('Неудалось получить ссылку! Скопируй самостоятельно и вставь комментарий')
                 self._pause("Проставь комментарий и нажми «Продолжить» для следующего договора.")
             try:
-                self.logger.info('Записываю в ексельку')
-                self.report_excel.add_link(loan_id, link)
+                self.logger.warning('Записываю в ексельку')
+                self.report_excel.add_link(fio, loan_id, link)
+                
             except Exception as e_excel:
                 self.logger.error(f'Я не смог записать в эксель {e_excel}')
             end_time = time.time()
             self.logger.info(f'Время обработки {end_time - start_time}')
+            self.file_service.move_folder(folder_path, self.dst_root)

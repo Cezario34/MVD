@@ -38,42 +38,30 @@ class MainPage():
         return texts
 
     def select_mvd(self, answer_ai):
-        options = self.wait.until(
-            EC.presence_of_all_elements_located(self._list_locator)
-        )
-        found = False
-        # Теперь ищем элемент с нужным текстом и кликаем
-        for _ in range(3):  # Несколько попыток на случай проблем
+        for attempt in range(1, 4):  # три попытки
             try:
-                # Получаем свежий список элементов каждый раз, если что-то пошло не так
                 options = self.wait.until(
-                    EC.presence_of_all_elements_located(self._list_locator))
-
+                    EC.presence_of_all_elements_located(self._list_locator)
+                )
                 for opt in options:
-                    # Сравнение in с ррезультатом аи (регистронезависимо)
                     if answer_ai.lower() in opt.text.lower():
                         try:
                             opt.click()
-                            found = True
-                            print(f"Selected: {opt.text}")
-                            break
-                        except Exception as e:
-                            print("Клик не удался (перекрыт), скроллим к элементу и пробуем снова...")
-                            self.logger.info(f'Ошибка {e}')
+                            return True
+                        except Exception:
+                            # перекрутка и повтор клика
                             self.driver.execute_script("arguments[0].scrollIntoView();", opt)
                             time.sleep(0.3)
                             opt.click()
-                            found = True
-                            print(f"Selected after scroll: {opt.text}")
-                            break
-
-                if found:
-                    break  # Выбрали — выходим из внешнего цикла
-
-            except StaleElementReferenceException:
-                print("Элемент устарел, повторяем поиск...")
+                            return True
+                # если среди options не было нужного текста — подождём и повторим
                 time.sleep(0.5)
-                continue
+            except TimeoutException:
+                # список вообще не появился — ждём и пробуем снова
+                time.sleep(0.5)
+        # ни в одной из трёх попыток не кликнули
+        return False
+
     
     def phone_input(self,phone_number):
         phone_input = self.driver.find_element(By.ID, "phone_check")

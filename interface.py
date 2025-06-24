@@ -2,8 +2,7 @@ import threading
 import tkinter as tk
 from tkinter.scrolledtext import ScrolledText
 import logging
-
-from orchestrator import LoanProcessor  # или как у вас называется ветка с .run()
+from log_filters import WarningLogFilter
 
 class TkLoggerHandler(logging.Handler):
     """Переадресует записи из logging в Text-виджет."""
@@ -31,10 +30,13 @@ class App(tk.Tk):
         self.btn_start    = tk.Button(self, text="Запустить",   command=self.on_start)
         self.btn_continue = tk.Button(self, text="Продолжить",  command=self.on_continue, state="disabled")
         self.btn_exit     = tk.Button(self, text="Выход",       command=self.on_exit)
+        self.btn_next = tk.Button(self, text="Пропустить договор",   command=self.on_next, state="disabled")
+
 
         self.btn_start.pack(side="top",   fill="x")
         self.btn_continue.pack(side="top", fill="x")
         self.btn_exit.pack(side="top",    fill="x")
+        self.btn_next.pack(side="top",    fill="x")
 
         # Поле для логов (с полосой прокрутки)
         self.log_widget = ScrolledText(self, state="disabled", height=20)
@@ -42,7 +44,9 @@ class App(tk.Tk):
 
         # Настраиваем логирование: все вызовы logger.info/etc пойдут в это поле
         handler = TkLoggerHandler(self.log_widget)
-        handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
+        handler.setLevel(logging.WARNING)
+        handler.addFilter(WarningLogFilter())
+        handler.setFormatter(logging.Formatter("%(message)s"))
         root_logger = logging.getLogger()
         root_logger.setLevel(logging.INFO)
         root_logger.addHandler(handler)
@@ -50,10 +54,12 @@ class App(tk.Tk):
         # События для управления паузой/останoвом в оркестраторе
         self._pause_event = threading.Event()
         self._stop_event  = threading.Event()
+        self._skip_event  = threading.Event()
 
         # Экземпляр вашего LoanProcessor
         self.processor = processor
         self.processor._on_pause = self.show_pause_prompt
+        self.processor._skip_event = self.on_next
 
     def show_pause_prompt(self, prompt: str):
         """ Отобразить в логах GUI текст prompt и активировать кнопку Continue """
@@ -63,23 +69,25 @@ class App(tk.Tk):
         self.log_widget.configure(state="disabled")
         # разблокируем кнопку Continue
         self.btn_continue.configure(state="normal")
-
+        self.btn_next.configure(state="normal")   # <- вот тут
 
 
     def on_start(self):
         """Запускаем ваш процесс в отдельном потоке, включаем кнопку 'Продолжить'."""
         self.btn_start.configure(state="disabled")
         self.btn_continue.configure(state="normal")
+        self.btn_next.configure(state="normal")   # <- вот тут
         self._pause_event.clear()
         self._stop_event.clear()
-
+        self._skip_event
         def target():
             # В вашем LoanProcessor.run() придётся где-то проверять эти эвенты:
             #   if self._stop_event.is_set(): break
             #   self._pause_event.wait()  # когда надо сделать паузу
             self.processor.run(
                 pause_event=self._pause_event,
-                stop_event =self._stop_event
+                stop_event =self._stop_event,
+                skip_event  =self._skip_event
             )
         threading.Thread(target=target, daemon=True).start()
 
@@ -89,10 +97,21 @@ class App(tk.Tk):
         self.btn_continue.configure(state="disabled")
 
     def on_exit(self):
-        # ставим флаг остановки и «отпускаем» pause, чтобы цикл завершился
-        self.processor._should_stop = True
-        self.processor._wait_for_continue.set()
+        # Сигналим потоку, что пора остановиться
+        self._stop_event.set()
+        # Дополнительно сразу же пытаемся убить браузер
+        try:
+            if hasattr(self.processor, "driver"):
+                self.processor.driver.quit()
+        except Exception:
+            pass
+        # Закрываем GUI
         self.destroy()
+
+    def on_next(self):
+        self._skip_event.set()
+        self.btn_next.configure(state="disabled")
+
 
 if __name__ == "__main__":
     app = App()
