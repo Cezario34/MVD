@@ -91,10 +91,15 @@ class MainPage():
             EC.visibility_of_element_located((By.CLASS_NAME, "textarea")))
         text_input.send_keys(text)
     
-    def input_files(self, found):
-        static_file_1 = r"\\Pczaitenov\159\Ежедневная подача\Галимзянова\Агентский договор Триумвират - ЭквИта-Капитал.pdf"
-        static_file_2 = r"\\Pczaitenov\159\Ежедневная подача\Галимзянова\ДОВЕРЕННОСТЬ НА СОТРУДНИКА ГАЛИМЗЯНОВА.pdf"
-        static_file_3 = r"\\Pczaitenov\159\Ежедневная подача\Галимзянова\Доверенность от Триумвират на Эквиту.pdf"
+    def input_files(self, found, db):
+        if db == 'ps':
+            static_file_1 = r"\\Pczaitenov\159\Ежедневная подача\Галимзянова\Агентский договор Триумвират - ЭквИта-Капитал.pdf"
+            static_file_2 = r"\\Pczaitenov\159\Ежедневная подача\Галимзянова\ДОВЕРЕННОСТЬ НА СОТРУДНИКА ГАЛИМЗЯНОВА.pdf"
+            static_file_3 = r"\\Pczaitenov\159\Ежедневная подача\Галимзянова\Доверенность от Триумвират на Эквиту.pdf"
+        else:
+            static_file_1 = r"\\Pczaitenov\159\ДК. Ежедневная подача\Галимзянова\ДК Агентский договор Ден. Крепость - Эквита (1) (1).pdf"
+            static_file_2 = r"\\Pczaitenov\159\ДК. Ежедневная подача\Галимзянова\ДК ДОВЕРЕННОСТЬ НА СОТРУДНИКА ГАЛИМЗЯНОВА.pdf"
+            static_file_3 = r"\\Pczaitenov\159\ДК. Ежедневная подача\Галимзянова\ДК Доверенность ООО МКК Денежная Крепость - ООО ПКО ЭквИта Капитал.pdf"
         found.extend([static_file_1,static_file_2,static_file_3])
         try:
             file_input = self.driver.find_element(By.ID, "fileupload-input")

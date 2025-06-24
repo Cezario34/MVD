@@ -61,6 +61,9 @@ def get_driver_kwargs() -> dict:
         "options": opts}
 
 
+
+
+
 if __name__ == '__main__':
 
     cfg = load_config(r"\\Pczaitenov\159\Служебная папка\.env")
@@ -73,12 +76,6 @@ if __name__ == '__main__':
         },
         logger = logging.getLogger("db")
     )
-    root_folder = r'\\Pczaitenov\159\Ежедневная подача\Галимзянова\21.06.2025 пс'
-    dst_root, unfulfilled_root = build_paths(
-        base_share=r"\\Pczaitenov\159\Ежедневная подача\Галимзянова",
-        loan_type="ПС")
-    ensure_dirs_exist(unfulfilled_root, dst_root)
-
 
     file_svc = FileService(
         temp_dir   = r"C:\Temp\SeleniumUploads",
@@ -104,8 +101,8 @@ if __name__ == '__main__':
 
     ai_svc = AIService(api_key=cfg.ai.api_key)
 
-    bd = 'ПС'        
-    proc = LoanProcessor(root_folder=root_folder, dst_root=dst_root, unfulfilled_root=unfulfilled_root,
+    bd = 'ps'        
+    proc = LoanProcessor(root_folder="", dst_root="", unfulfilled_root="",
                          keywords= file_svc.extensions, 
                          captcha_service=captcha, 
                          driver_kwargs=driver_kwargs,

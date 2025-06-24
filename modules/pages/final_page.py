@@ -59,4 +59,4 @@ class FinalPage():
             )
             return err_elem.text.strip()
         except TimeoutException:
-            raise ""
+            return ""

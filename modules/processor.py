@@ -52,6 +52,14 @@ class LoanProcessor:
         self._on_pause: Callable[[str], None] = lambda prompt: None  
         self._skip_event =  threading.Event()
 
+    def db_select(self):
+        if self.bd.upper() == "ПС":
+            self.db = "ps"
+        elif self.bd.upper() == "ДК":
+            self.db = "dk"
+        else:
+            raise ValueError(f"Неподдерживаемый тип заявки: {self.bd!r}")
+
     def init_browser(self):
         self.driver = uc.Chrome(**self.driver_kwargs)
         self.driver.set_window_size(800, 1200)
@@ -97,8 +105,11 @@ class LoanProcessor:
 
             #Вытягиваем лоан ид из папки + пути к файлам.
             try:
+                self.db_select()
+                self.logger.info(self.db)
                 loan_id = self.file_service.get_loan_id(self.root_folder)
                 found, folder_path = self.file_service.find_files_by_keywords(self.root_folder)
+                self.logger.info(folder_path)
                 self.logger.warning(f'Обрабатываю договор {loan_id}')
             except Exception as e:
                 self.logger.critical(f'Папка не найдена, проверь путь! {e}')
@@ -108,7 +119,7 @@ class LoanProcessor:
             try:
                 ps_conn = self.db_service.remote_db_map['ps']
                 fio, birthday, region_id, reg_address = \
-                    self.db_service.get_code_region("dk", loan_id)
+                    self.db_service.get_code_region(self.db, loan_id)
                 self.logger.info('Вытягиваю данные из бд')
                 self.logger.warning(f'Данные по клиенту {fio}, {reg_address}')
             except Exception as e:
@@ -193,7 +204,6 @@ class LoanProcessor:
                         "Не удалось автоматически кликнуть по «%s» — перейдите к ручному выбору", 
                         answer
                     )
-                    
             self.main.phone_input(self.phone_number)
 
             self.main.input_email(self.email)
@@ -204,10 +214,10 @@ class LoanProcessor:
 
             self.main.input_fio(locality,self.bd)
 
-            self.main.text_input(get_text(locality, fio, birthday, self.bd))
+            self.main.text_input(get_text(locality, fio, birthday, self.bd, reg_address))
 
             try:
-                self.main.input_files(found)
+                self.main.input_files(found, self.db)
             except Exception as e:
                 self.logger.warning(f'Внимание! Какой то из файлов не был загружен!')
 
@@ -261,6 +271,8 @@ class LoanProcessor:
                 self.main.accept_the_application()
                 self.final.email_complete_btn()
 
+            self.logger.warning('Ввожу код с почты, ожидай.')
+
             try:
                 time.sleep(2)
                 email_code = self.mail.get_code()
@@ -268,7 +280,7 @@ class LoanProcessor:
                     raise ValueError("Письмо с кодом не найдено")
             except Exception as e:
                 self.logger.error(f"Код с почты не получен: {e}")
-                email_code = self._pause("Проблема с почтой. Возможно нужно будет ввести код вручную. Нажми «Продолжить».")
+                email_code = self._pause("Проблема с почтой. Нужно будет ввести код вручную и после нажми «Продолжить».")
 
             self.logger.info(f'Код проверки {email_code}')
             self.final.input_email_code(email_code)
@@ -279,9 +291,11 @@ class LoanProcessor:
 
             err_text = self.final.wait_for_error()
             if err_text:
-                self.logger.error(f"Код неверен: «{err_text}»")
-                self.logger.info(f"Введенный код неверен!")
-                # тут можете повторить ввод или прервать, как вам нужно
+                if "Письмо было отправлено Вам на почту" in err_text:
+                    self.logger.info("Код отправлен на почту, пытаемся его получить…")
+                else:
+                    self.logger.error(f"Код неверен: «{err_text}»")
+                    
             else:
                 self.logger.info("Код принят, продолжаем дальше")
 

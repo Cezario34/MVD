@@ -1,105 +1,113 @@
 import imaplib
 import email
 import re
+from typing import Optional
 
-
-class MailCode():
-
-    def __init__(self,
-                login,
-                password,
-                server,
-                port,
-                sender,
-                ):
-        
-        self.login=login
+class MailCode:
+    def __init__(
+        self,
+        login: str,
+        password: str,
+        server: str,
+        port: int,
+        sender: str,
+        folder: str = "INBOX",
+    ):
+        self.login    = login
         self.password = password
-        self.server=server
-        self.port = port
-        self.sender = sender
+        self.server   = server
+        self.port     = port
+        self.sender   = sender
+        self.folder   = folder
 
+    def _connect(self):
+        m = imaplib.IMAP4_SSL(self.server, self.port)
+        m.login(self.login, self.password)
+        m.select(self.folder)
+        return m
 
-    def get_email(self, subject: str) -> str | None:
-
-        
+    def get_email(self, subject: Optional[str] = None) -> Optional[str]:
+        """
+        Возвращает body (HTML или plain) последнего письма
+        от self.sender (и с темой subject, если указана).
+        """
         try:
-            # Подключение к серверу
-            mail = imaplib.IMAP4_SSL(self.server, self.port)
-            mail.login(self.login, self.password)
-            mail.select('inbox')
+            m = self._connect()
 
-            # Поиск писем только от нужного отправителя
-            status, messages = mail.search(None, f'(FROM "{self.sender}")')
-            mail_ids = messages[0].split()
-            if not mail_ids:
-                print('Нет писем от этого отправителя.')
-                mail.logout()
+            # Формируем критерии поиска
+            criteria = [f'FROM "{self.sender}"']
+            if subject:
+                criteria.append(f'SUBJECT "{subject}"')
+            # IMAP требует, чтобы все критерии были в одном аргументе, разделённые пробелом
+            search_str = " ".join(criteria)
+
+            status, data = m.search(None, search_str)
+            if status != "OK":
+                print("Ошибка при поиске писем:", status)
+                m.logout()
                 return None
 
-            # Перебор писем от новых к старым
-            for mail_id in reversed(mail_ids):
-                status, msg_data = mail.fetch(mail_id, '(RFC822)')
-                for response_part in msg_data:
-                    if isinstance(response_part, tuple):
-                        msg = email.message_from_bytes(response_part[1])
-                        # Проверяем тему письма (полное совпадение)
-                        subj = email.header.decode_header(msg["Subject"])[0]
-                        subj_text = subj[0]
-                        if isinstance(subj_text, bytes):
-                            subj_text = subj_text.decode(subj[1] or "utf-8")
-                        if subj_text.strip() != subject.strip():
-                            continue  # тема не совпадает — пропускаем
+            ids = data[0].split()
+            if not ids:
+                print("Нет писем от этого отправителя/с темой.")
+                m.logout()
+                return None
 
-                        # Парсим тело письма (plain → html)
-                        body = None
-                        if msg.is_multipart():
-                            for part in msg.walk():
-                                ctype = part.get_content_type()
-                                cdispo = part.get_content_disposition()
-                                if ctype == "text/plain" and cdispo != "attachment":
-                                    body = part.get_payload(decode=True).decode(part.get_content_charset() or "utf-8")
-                                    break
-                            if not body:
-                                for part in msg.walk():
-                                    ctype = part.get_content_type()
-                                    cdispo = part.get_content_disposition()
-                                    if ctype == "text/html" and cdispo != "attachment":
-                                        body = part.get_payload(decode=True).decode(part.get_content_charset() or "utf-8")
-                                        break
-                        else:
-                            ctype = msg.get_content_type()
-                            if ctype == "text/plain":
-                                body = msg.get_payload(decode=True).decode(msg.get_content_charset() or "utf-8")
-                            elif ctype == "text/html":
-                                body = msg.get_payload(decode=True).decode(msg.get_content_charset() or "utf-8")
+            # Возьмём последнее письмо
+            latest_id = ids[-1]
 
-                        mail.logout()
-                        return body  # возвращаем тело первого найденного письма с нужной темой
+            # Забираем весь месcедж
+            status, msg_data = m.fetch(latest_id, "(RFC822)")
+            if status != "OK":
+                print("Не удалось получить тело письма")
+                m.logout()
+                return None
 
-            print('Нет писем с такой темой от этого отправителя.')
-            mail.logout()
-            return None
+            raw = msg_data[0][1]  # байты
+            msg = email.message_from_bytes(raw)
+
+            # Ищем HTML или plain
+            body = None
+            if msg.is_multipart():
+                for part in msg.walk():
+                    ctype = part.get_content_type()
+                    disp  = str(part.get("Content-Disposition"))
+                    if ctype == "text/html" and "attachment" not in disp:
+                        body = part.get_payload(decode=True).decode(part.get_content_charset() or "utf-8", errors="replace")
+                        break
+                else:
+                    # fallback to text/plain
+                    part = msg.get_payload(0)
+                    body = part.get_payload(decode=True).decode(part.get_content_charset() or "utf-8", errors="replace")
+            else:
+                body = msg.get_payload(decode=True).decode(msg.get_content_charset() or "utf-8", errors="replace")
+
+            m.logout()
+            return body
+
         except Exception as e:
-            print(f"Ошибка: {e}")
+            print("Ошибка при работе с почтой:", e)
             return None
 
-    def get_code(self) -> str | None:
-        email_body = self.get_email("Проверка почты")
-        if not email_body:
+    def get_code(self, subject: Optional[str] = None) -> Optional[str]:
+        """
+        Ищет в теле письма кусок вида:
+            Ваш код:</h2><h1><em>CODE</em>
+        и возвращает CODE.
+        """
+        body = self.get_email(subject)
+        if not body:
             print("Письмо не найдено")
             return None
 
         match = re.search(
             r'Ваш код:</h2>\s*<h1><em[^>]*>([\w\dА-Яа-я]+)</em>',
-            email_body,
+            body,
             re.IGNORECASE | re.DOTALL
         )
-
         if match:
-            code = match.group(1)
-            return code
+            return match.group(1)
         else:
-            print("Код не найден")
+            print("Код не найден в письме")
             return None
-
+        

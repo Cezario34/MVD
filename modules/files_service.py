@@ -121,6 +121,9 @@ class FileService:
 
 
     def get_locality(self, root_folder: str) -> Optional[str]:
+
         first = self.find_first_subfolder(root_folder)
-        # пример логики — может потребовать правки под ваши реальныe имена
-        return first.split()[2].split("\\")[1] if first else None
+        if not first:
+            return None
+        name = os.path.basename(first)
+        return name.split()[0]
